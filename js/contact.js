@@ -48,9 +48,16 @@ function initContactForm() {
     const email = form.querySelector('#email').value.trim();
     const message = form.querySelector('#message').value.trim();
 
-    const subject = encodeURIComponent(`Contact from ${name}`);
-    const body = encodeURIComponent(`From: ${name}\nEmail: ${email}\n\n${message}`);
+    const subject = encodeURIComponent('Contact from ' + name);
+    const body = encodeURIComponent('From: ' + name + '\nEmail: ' + email + '\n\n' + message);
+    const mailtoUrl = 'mailto:Armando.diaz@ufl.edu?subject=' + subject + '&body=' + body;
 
-    window.location.href = `mailto:Armando.diaz@ufl.edu?subject=${subject}&body=${body}`;
+    // Create a temporary link and click it — most reliable cross-browser method
+    const link = document.createElement('a');
+    link.href = mailtoUrl;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   });
 }
