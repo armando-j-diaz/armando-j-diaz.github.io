@@ -55,7 +55,6 @@ function initContactForm() {
     // Create a temporary link and click it — most reliable cross-browser method
     const link = document.createElement('a');
     link.href = mailtoUrl;
-    link.target = '_blank';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
