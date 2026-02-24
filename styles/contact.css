@@ -27,9 +27,12 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4);
   }
+
   50% {
     box-shadow: 0 0 0 8px rgba(74, 222, 128, 0);
   }
@@ -182,7 +185,7 @@ a.contact-item__value:hover {
   border-radius: 6px;
   outline: none;
   transition: border-color var(--duration-fast) var(--ease-out),
-              box-shadow var(--duration-fast) var(--ease-out);
+    box-shadow var(--duration-fast) var(--ease-out);
 }
 
 .form__input::placeholder {
@@ -197,6 +200,16 @@ a.contact-item__value:hover {
 .form__textarea {
   resize: vertical;
   min-height: 140px;
+}
+
+/* Form notification */
+.form__notification {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #4ade80;
+  margin-top: 4px;
+  opacity: 0;
+  transition: opacity 0.5s ease;
 }
 
 /* ------------------------------------------------

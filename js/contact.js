@@ -58,5 +58,16 @@ function initContactForm() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    // Show confirmation notification
+    let note = form.querySelector('.form__notification');
+    if (!note) {
+      note = document.createElement('p');
+      note.className = 'form__notification';
+      form.appendChild(note);
+    }
+    note.textContent = '✓ Opening your default email app...';
+    note.style.opacity = '1';
+    setTimeout(() => { note.style.opacity = '0'; }, 4000);
   });
 }
