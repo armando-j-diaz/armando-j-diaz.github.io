@@ -23,46 +23,46 @@ document.addEventListener('DOMContentLoaded', () => {
   // Sequence steps
   const sequence = [
     // 1. Blink cursor for 400ms
-    { action: 'wait', duration: 400 },
+    { action: 'wait', duration: 200 },
 
     // 2. Type "Information Systems Student..."
-    { action: 'type', target: 'typewriter', text: 'Information Systems Student...', speed: 80 },
+    { action: 'type', target: 'typewriter', text: 'Information Systems Student...', speed: 40 },
 
     // 3. Pause
-    { action: 'wait', duration: 600 },
-
-    // 4. Backspace all
-    { action: 'backspace', target: 'typewriter', speed: 40 },
-
-    // 5. Pause
     { action: 'wait', duration: 300 },
 
+    // 4. Backspace all
+    { action: 'backspace', target: 'typewriter', speed: 20 },
+
+    // 5. Pause
+    { action: 'wait', duration: 150 },
+
     // 6. Type "Data Engineer..."
-    { action: 'type', target: 'typewriter', text: 'Data Engineer...', speed: 80 },
+    { action: 'type', target: 'typewriter', text: 'Data Engineer...', speed: 40 },
 
     // 7. Pause
-    { action: 'wait', duration: 600 },
+    { action: 'wait', duration: 300 },
 
     // 8. Backspace all
-    { action: 'backspace', target: 'typewriter', speed: 40 },
+    { action: 'backspace', target: 'typewriter', speed: 20 },
 
     // 9. Pause
-    { action: 'wait', duration: 400 },
+    { action: 'wait', duration: 200 },
 
     // 10. Hide first line cursor, show name line
     { action: 'switchToName' },
 
     // 11. Type "Armando Diaz" (slower, more deliberate)
-    { action: 'type', target: 'name', text: 'Armando Diaz', speed: 60 },
+    { action: 'type', target: 'name', text: 'Armando Diaz', speed: 30 },
 
     // 12. Pause
-    { action: 'wait', duration: 200 },
+    { action: 'wait', duration: 100 },
 
     // 13. Switch to subtitle
     { action: 'switchToSubtitle' },
 
     // 14. Type subtitle
-    { action: 'type', target: 'subtitle', text: 'building no-bs data systems that drive revenue', speed: 70 },
+    { action: 'type', target: 'subtitle', text: 'building no-bs data systems that drive revenue', speed: 35 },
 
     // 15. Finish
     { action: 'finish' }
