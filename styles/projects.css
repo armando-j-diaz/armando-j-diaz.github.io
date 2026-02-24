@@ -1,0 +1,209 @@
+/* ================================================
+   PROJECTS PAGE — projects.html
+   Stats, filter, featured project, project grid
+   ================================================ */
+
+/* ------------------------------------------------
+   STATS ROW
+   ------------------------------------------------ */
+.stats-section {
+  padding-top: 0;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+  padding-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--border);
+}
+
+.stat {
+  text-align: center;
+  flex: 0 0 auto;
+}
+
+.stat__number {
+  font-family: var(--font-body);
+  font-size: clamp(2rem, 1.5rem + 2.5vw, 3rem);
+  font-weight: 500;
+  color: var(--accent-cream);
+  display: inline;
+}
+
+.stat__suffix {
+  font-family: var(--font-body);
+  font-size: clamp(1.5rem, 1rem + 2vw, 2.25rem);
+  font-weight: 500;
+  color: var(--accent-cream);
+}
+
+.stat__label {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 4px;
+}
+
+.stat__divider {
+  width: 1px;
+  height: 48px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .stats-row {
+    gap: var(--space-md);
+  }
+
+  .stat__divider {
+    display: none;
+  }
+
+  .stat {
+    flex: 0 0 40%;
+  }
+}
+
+/* ------------------------------------------------
+   FILTER BAR
+   ------------------------------------------------ */
+.filter-section {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter__btn {
+  font-family: var(--font-body);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 8px 20px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out);
+}
+
+.filter__btn:hover {
+  border-color: var(--accent-warm);
+  color: var(--accent-warm);
+}
+
+.filter__btn--active {
+  background: var(--accent-warm);
+  color: var(--bg-primary);
+  border-color: var(--accent-warm);
+}
+
+/* ------------------------------------------------
+   FEATURED PROJECT
+   ------------------------------------------------ */
+.featured-project {
+  position: relative;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--space-xl);
+  overflow: hidden;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.featured-project:hover {
+  border-color: var(--accent-warm);
+}
+
+.featured-project__grid-bg {
+  position: absolute;
+  inset: 0;
+  opacity: 0.06;
+  background-image:
+    linear-gradient(var(--text-tertiary) 1px, transparent 1px),
+    linear-gradient(90deg, var(--text-tertiary) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+.featured-project__content {
+  position: relative;
+  z-index: 1;
+}
+
+.featured-project__title {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 900;
+  color: var(--accent-cream);
+  margin-bottom: var(--space-sm);
+}
+
+.featured-project__desc {
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin-bottom: var(--space-md);
+  max-width: 700px;
+}
+
+.featured-project__links {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+/* ------------------------------------------------
+   PROJECT GRID
+   ------------------------------------------------ */
+.project-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+@media (min-width: 640px) {
+  .project-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .project-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Asymmetric: first and fifth cards span 2 cols */
+  .project-card:nth-child(1) {
+    grid-column: span 2;
+  }
+
+  .project-card:nth-child(5) {
+    grid-column: span 2;
+  }
+}
+
+.project-card {
+  display: block;
+  text-decoration: none;
+}
+
+/* Filtered out state */
+.project-card--hidden {
+  display: none;
+}

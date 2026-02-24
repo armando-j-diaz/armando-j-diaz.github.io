@@ -1,0 +1,262 @@
+/* ================================================
+   ABOUT PAGE — about.html
+   Magazine bio, expertise clusters, timeline
+   ================================================ */
+
+/* ------------------------------------------------
+   BIO — MAGAZINE SPREAD
+   ------------------------------------------------ */
+.bio__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-lg);
+}
+
+@media (min-width: 768px) {
+  .bio__grid {
+    grid-template-columns: 2fr auto 3fr;
+    gap: var(--space-lg);
+    align-items: start;
+  }
+}
+
+/* Pull Quote (left) */
+.bio__left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.bio__pullquote {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 1.2rem + 1.5vw, 2rem);
+  font-style: italic;
+  font-weight: 700;
+  color: var(--accent-cream);
+  line-height: 1.4;
+  border-left: 3px solid var(--accent-warm);
+  padding-left: var(--space-md);
+}
+
+.bio__location {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.05em;
+}
+
+/* Vertical divider */
+.bio__divider {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .bio__divider {
+    display: block;
+    width: 1px;
+    background: var(--border);
+    align-self: stretch;
+  }
+}
+
+/* Bio paragraphs (right) */
+.bio__paragraph {
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--text-secondary);
+  line-height: 1.8;
+  margin-bottom: var(--space-md);
+}
+
+.bio__paragraph:last-child {
+  margin-bottom: 0;
+}
+
+/* Drop cap */
+.bio__paragraph--dropcap::first-letter {
+  font-family: var(--font-display);
+  font-size: 3.5em;
+  font-weight: 900;
+  float: left;
+  line-height: 0.8;
+  margin-right: 0.1em;
+  margin-top: 0.05em;
+  color: var(--accent-warm);
+}
+
+/* ------------------------------------------------
+   EXPERTISE CLUSTERS — 2x2 Grid
+   ------------------------------------------------ */
+.expertise__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+@media (min-width: 640px) {
+  .expertise__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.expertise__card {
+  padding: var(--space-lg);
+}
+
+.expertise__card .card__category {
+  margin-bottom: var(--space-sm);
+  font-size: 12px;
+}
+
+.expertise__card .card__tags {
+  gap: 8px;
+}
+
+.expertise__card .tag {
+  font-size: 12px;
+  padding: 5px 12px;
+}
+
+/* ------------------------------------------------
+   EXPERIENCE TIMELINE
+   ------------------------------------------------ */
+.timeline {
+  position: relative;
+  max-width: 800px;
+  margin: var(--space-lg) auto 0;
+  padding-left: 40px;
+}
+
+/* Vertical line */
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+
+.timeline__entry {
+  position: relative;
+  margin-bottom: var(--space-xl);
+  padding-left: var(--space-md);
+}
+
+.timeline__entry:last-child {
+  margin-bottom: 0;
+}
+
+/* Dot on the line */
+.timeline__entry::before {
+  content: '';
+  position: absolute;
+  left: calc(-40px + 15px - 5px);
+  top: 6px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--accent-warm);
+  border: 2px solid var(--bg-primary);
+  z-index: 1;
+}
+
+.timeline__year {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.timeline__role {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--accent-cream);
+  margin-bottom: 2px;
+}
+
+.timeline__company {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--accent-warm);
+  display: block;
+  margin-bottom: 8px;
+}
+
+.timeline__desc {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* Desktop: alternating left/right */
+@media (min-width: 768px) {
+  .timeline {
+    padding-left: 0;
+  }
+
+  .timeline::before {
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .timeline__entry {
+    width: 45%;
+    padding-left: 0;
+  }
+
+  .timeline__entry:nth-child(odd) {
+    margin-left: 0;
+    text-align: right;
+    padding-right: var(--space-lg);
+  }
+
+  .timeline__entry:nth-child(even) {
+    margin-left: 55%;
+    padding-left: var(--space-lg);
+  }
+
+  .timeline__entry:nth-child(odd)::before {
+    left: auto;
+    right: calc(-5% - 5px);
+  }
+
+  .timeline__entry:nth-child(even)::before {
+    left: calc(-10% - 5px);
+  }
+}
+
+/* ------------------------------------------------
+   RESUME SECTION
+   ------------------------------------------------ */
+.resume-section {
+  padding: var(--space-xl) var(--space-lg);
+}
+
+/* ------------------------------------------------
+   FAVORITE QUOTE SECTION
+   ------------------------------------------------ */
+.quote-section {
+  padding: var(--space-xl) var(--space-lg);
+}
+
+.quote-section__blockquote {
+  max-width: 700px;
+  margin: var(--space-lg) auto 0;
+  padding-left: var(--space-lg);
+  border-left: 3px solid var(--accent-warm);
+}
+
+.quote-section__blockquote p {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 1.2rem + 1.5vw, 2.25rem);
+  font-style: italic;
+  font-weight: 700;
+  color: var(--accent-cream);
+  line-height: 1.4;
+}

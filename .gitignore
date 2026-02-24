@@ -1,0 +1,10 @@
+# Ignore
+.DS_Store
+Thumbs.db
+*.log
+node_modules/
+CONTENT_TO_FILL_IN.txt
+thought-template.md
+.claude/
+Untitled-1
+assets/resume/Armando-Diaz-Resume-NT*

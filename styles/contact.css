@@ -1,0 +1,212 @@
+/* ================================================
+   CONTACT PAGE — contact.html
+   Availability badge, contact grid, form
+   ================================================ */
+
+/* ------------------------------------------------
+   AVAILABILITY BADGE
+   ------------------------------------------------ */
+.availability {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: var(--space-md);
+  padding: 8px 16px;
+  background: rgba(74, 222, 128, 0.06);
+  border: 1px solid rgba(74, 222, 128, 0.2);
+  border-radius: 100px;
+}
+
+.availability__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4ade80;
+  flex-shrink: 0;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(74, 222, 128, 0);
+  }
+}
+
+.availability__text {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ------------------------------------------------
+   CONTACT GRID
+   ------------------------------------------------ */
+.contact-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-xl);
+}
+
+@media (min-width: 768px) {
+  .contact-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2xl);
+  }
+}
+
+/* ------------------------------------------------
+   CONTACT DETAILS (Left)
+   ------------------------------------------------ */
+.contact-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.contact-item {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.contact-item:first-child {
+  padding-top: 0;
+}
+
+.contact-item__label {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+
+.contact-item__value {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-out);
+  position: relative;
+}
+
+a.contact-item__value:hover {
+  color: var(--accent-warm);
+}
+
+.contact-item__value--copy {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--text-primary);
+}
+
+.contact-item__value--copy:hover {
+  color: var(--accent-warm);
+}
+
+.contact-item__icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+/* Copy tooltip */
+.contact-item__tooltip {
+  position: absolute;
+  top: -32px;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: var(--accent-warm);
+  color: var(--bg-primary);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s var(--ease-out), transform 0.3s var(--ease-out);
+}
+
+.contact-item__tooltip--visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ------------------------------------------------
+   CONTACT FORM (Right)
+   ------------------------------------------------ */
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.contact-form .btn {
+  align-self: flex-start;
+}
+
+.form__group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form__label {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+}
+
+.form__input {
+  width: 100%;
+  padding: 14px 16px;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.form__input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.form__input:focus {
+  border-color: var(--accent-warm);
+  box-shadow: 0 0 0 3px var(--glow-warm);
+}
+
+.form__textarea {
+  resize: vertical;
+  min-height: 140px;
+}
+
+/* ------------------------------------------------
+   FOOTER CREDIT
+   ------------------------------------------------ */
+.footer__credit {
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: var(--space-md);
+  padding-top: var(--space-sm);
+}
