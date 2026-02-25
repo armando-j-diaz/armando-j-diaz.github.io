@@ -201,6 +201,7 @@ body::after {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
+  overflow: visible;
 }
 
 .nav__name {
@@ -592,26 +593,29 @@ body::after {
   }
 
   .nav__links {
-    position: fixed;
-    top: var(--nav-height);
+    position: absolute;
+    top: 100%;
     right: 0;
-    bottom: 0;
     width: 260px;
     flex-direction: column;
     align-items: flex-start;
     gap: 0;
     padding: var(--space-md);
     background: rgba(49, 47, 47, 0.98);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
     border-left: 1px solid var(--border);
-    transform: translateX(100%);
-    transition: transform var(--duration-normal) var(--ease-out);
+    border-bottom: 1px solid var(--border);
+    transform: translateY(-8px);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform var(--duration-normal) var(--ease-out),
+                opacity var(--duration-normal) var(--ease-out);
     z-index: 999;
   }
 
   .nav__links--open {
-    transform: translateX(0);
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .nav__link {
