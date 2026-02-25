@@ -607,6 +607,7 @@ body::after {
     border-left: 1px solid var(--border);
     transform: translateX(100%);
     transition: transform var(--duration-normal) var(--ease-out);
+    z-index: 999;
   }
 
   .nav__links--open {

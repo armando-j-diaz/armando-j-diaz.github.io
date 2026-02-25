@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
     { action: 'switchToSubtitle' },
 
     // 14. Type subtitle
-    { action: 'type', target: 'subtitle', text: 'building no-bs data systems that drive revenue', speed: 35 },
+    { action: 'type', target: 'subtitle', text: 'building data systems that drive revenue', speed: 35 },
 
     // 15. Finish
     { action: 'finish' }
