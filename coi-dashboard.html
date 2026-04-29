@@ -363,14 +363,31 @@
   // ══════════════════════════════════════
   function statusBadge(raw) {
     if (!raw || !raw.trim()) return '<span class="badge badge-gray">—</span>';
-    const s   = raw.trim().toLowerCase().replace(/_/g, ' ');
-    const lbl = raw.trim().replace(/_/g, ' ');
+    const s   = raw.trim().toLowerCase();
+    const lbl = raw.trim();
     let cls   = 'badge-gray';
-    if (/complet|deliver|accept|done|approv|received/.test(s))            cls = 'badge-green';
-    else if (/stale|expir|reject|cancel|overdue|missing/.test(s))         cls = 'badge-red';
-    else if (/legal|forward|in.?progress|wc|pl|sent/.test(s))            cls = 'badge-blue';
-    else if (/pending|waiting|new|open/.test(s))                          cls = 'badge-yellow';
-    else if (/form|request/.test(s))                                       cls = 'badge-purple';
+
+    // Stale-Resolved: purple, UNLESS "delivered" is also in the string (then green)
+    if (s.includes('stale-resolved')) {
+      cls = s.includes('delivered') ? 'badge-green' : 'badge-purple';
+    }
+    // Green: complete (COI Not Required - complete, Delivered - complete)
+    else if (s.includes('complete')) {
+      cls = 'badge-green';
+    }
+    // Blue: respond (Holder Received - Text/Attachment - respond, Ready to Deliver - respond)
+    else if (s.includes('respond')) {
+      cls = 'badge-blue';
+    }
+    // Yellow: pending (Pending HOA Reply, Sent to Legal - pending)
+    else if (s.includes('pending')) {
+      cls = 'badge-yellow';
+    }
+    // Red: missing (Needs Manual Review - missing)
+    else if (s.includes('missing')) {
+      cls = 'badge-red';
+    }
+
     return `<span class="badge ${cls}">${lbl}</span>`;
   }
 
