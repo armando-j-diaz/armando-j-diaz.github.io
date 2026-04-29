@@ -44,6 +44,12 @@
     .header-left { display: flex; align-items: center; gap: 10px; }
     header h1 { font-size: 17px; font-weight: 700; margin: 0; }
     .refresh-area { display: flex; align-items: center; gap: 10px; font-size: 12px; color: #94a3b8; }
+    .coi-form-btn {
+      background: #2563eb; color: white; text-decoration: none;
+      border-radius: 6px; padding: 6px 14px; font-size: 13px; font-weight: 600;
+      transition: background 0.2s; white-space: nowrap;
+    }
+    .coi-form-btn:hover { background: #1d4ed8; }
     .refresh-btn {
       background: #334155; color: #e2e8f0; border: none; border-radius: 6px;
       padding: 5px 12px; font-size: 12px; cursor: pointer; transition: background 0.2s;
@@ -164,6 +170,7 @@
       <h1>HVAC Worker Dashboard</h1>
     </div>
     <div class="refresh-area">
+      <a href="https://armandojdiaz.com/coi-form/" target="_blank" rel="noopener" class="coi-form-btn">+ Submit COI Form</a>
       <span class="dot"></span>
       <span id="last-updated">Loading...</span>
       <button class="refresh-btn" onclick="refreshAll()">↻ Refresh</button>
