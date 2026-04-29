@@ -248,32 +248,54 @@
   }
 
   // ══════════════════════════════════════
-  //  CSV PARSER (handles quoted fields)
+  //  CSV PARSER — handles multi-line quoted fields
+  //  (notes column contains JSON with embedded newlines)
   // ══════════════════════════════════════
   function parseCSV(text) {
     const rows = [];
-    const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      const row = [];
-      let inQuotes = false;
-      let current  = '';
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') {
-          if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
-          else { inQuotes = !inQuotes; }
-        } else if (ch === ',' && !inQuotes) {
-          row.push(current.trim());
-          current = '';
-        } else {
-          current += ch;
-        }
+    let row      = [];
+    let current  = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const ch   = text[i];
+      const next = text[i + 1];
+
+      if (ch === '"') {
+        if (inQuotes && next === '"') { current += '"'; i++; } // escaped quote
+        else { inQuotes = !inQuotes; }
+      } else if (ch === ',' && !inQuotes) {
+        row.push(current.trim());
+        current = '';
+      } else if ((ch === '\r' || ch === '\n') && !inQuotes) {
+        if (ch === '\r' && next === '\n') i++; // skip \r\n pair
+        row.push(current.trim());
+        current = '';
+        if (row.some(c => c)) rows.push(row);
+        row = [];
+      } else {
+        current += ch;
       }
+    }
+    // flush last field/row
+    if (current || row.length > 0) {
       row.push(current.trim());
-      rows.push(row);
+      if (row.some(c => c)) rows.push(row);
     }
     return rows;
+  }
+
+  // Clean up notes: if it's JSON-ish, extract the human-readable "reason" field
+  function cleanNotes(raw) {
+    if (!raw || !raw.trim()) return '—';
+    const s = raw.trim();
+    // Try to pull out the "reason" value from Make.com JSON notes
+    const reasonMatch = s.match(/reason\s*:\s*([^\n,}]+)/i);
+    if (reasonMatch) return reasonMatch[1].trim();
+    // If it starts with { but no reason found, just strip it
+    if (s.startsWith('{')) return '(see sheet)';
+    // Otherwise show as-is, capped at 120 chars
+    return s.length > 120 ? s.slice(0, 120) + '…' : s;
   }
 
   async function fetchCSV(url) {
@@ -514,7 +536,7 @@
         <td>${date(r[10])}</td>
         <td>${date(r[12])}</td>
         <td>${date(r[13])}</td>
-        <td><span class="notes-cell">${safe(r[11])}</span></td>
+        <td><span class="notes-cell">${cleanNotes(r[11])}</span></td>
         <td>${actionLink(r[16], '↗ Open')}</td>
       </tr>`;
     }
