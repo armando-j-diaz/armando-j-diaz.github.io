@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HOA Record — AMH HVAC</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #181c27;
+      --border: #2a2f3f;
+      --accent: #00c2ff;
+      --accent-dim: rgba(0, 194, 255, 0.08);
+      --text: #e4e8f0;
+      --muted: #6b7490;
+      --success: #00e5a0;
+      --danger: #ff5c5c;
+      --label: #8892aa;
+      --radius: 8px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      min-height: 100vh;
+      padding: 48px 24px;
+    }
+
+    .shell { max-width: 720px; margin: 0 auto; }
+
+    .header {
+      margin-bottom: 40px;
+      border-left: 3px solid var(--accent);
+      padding-left: 16px;
+    }
+
+    .header .eyebrow {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+
+    .header h1 { font-size: 22px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .header p { font-size: 13px; color: var(--muted); }
+
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .field-row.full { grid-template-columns: 1fr; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+
+    label.fl {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--label);
+    }
+
+    input[type="text"], input[type="email"], input[type="tel"], input[type="date"], textarea {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 14px;
+      padding: 10px 12px;
+      width: 100%;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      outline: none;
+    }
+
+    input:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0,194,255,0.1);
+    }
+
+    textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+
+    .radio-group { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .radio-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 9px 14px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .radio-option input[type="radio"] {
+      width: 14px; height: 14px;
+      accent-color: var(--accent);
+      cursor: pointer; flex-shrink: 0;
+    }
+
+    .radio-option:has(input:checked) {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+      color: var(--text);
+    }
+
+    .q { margin-bottom: 20px; }
+    .q:last-child { margin-bottom: 0; }
+
+    .conditional { display: none; margin-top: 12px; }
+    .conditional.visible { display: block; }
+
+    .submit-row { margin-top: 24px; display: flex; justify-content: flex-end; }
+
+    button[type="submit"] {
+      background: var(--accent);
+      color: #000;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: none;
+      border-radius: 6px;
+      padding: 12px 28px;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    button[type="submit"]:hover { opacity: 0.88; transform: translateY(-1px); }
+    button[type="submit"]:active { transform: translateY(0); }
+    button[type="submit"]:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .toast {
+      display: none;
+      position: fixed;
+      bottom: 32px; right: 32px;
+      background: var(--success);
+      color: #000;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px; font-weight: 500;
+      padding: 12px 20px;
+      border-radius: 6px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      z-index: 999;
+      animation: slideUp 0.3s ease;
+    }
+
+    .toast.error { background: var(--danger); color: #fff; }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 560px) { .field-row { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="header">
+    <div class="eyebrow">AMH HVAC Services — Internal</div>
+    <h1>HOA Property Record</h1>
+    <p>Complete after COI submission. All fields feed directly into the HOA database.</p>
+  </div>
+
+  <form id="hoaForm">
+
+    <!-- HOA CONTACT -->
+    <div class="section">
+      <div class="section-title">HOA Contact Info</div>
+
+      <div class="field-row full">
+        <div class="field">
+          <label class="fl" for="hoa_name">HOA Name</label>
+          <input type="text" id="hoa_name" name="hoa_name" placeholder="e.g. Regency at Pembroke Pines" required />
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="fl" for="hoa_email">HOA Email</label>
+          <input type="email" id="hoa_email" name="hoa_email" placeholder="contact@hoa.com" required />
+        </div>
+        <div class="field">
+          <label class="fl" for="hoa_phone">HOA Phone</label>
+          <input type="tel" id="hoa_phone" name="hoa_phone" placeholder="(XXX) XXX-XXXX" />
+        </div>
+      </div>
+
+      <div class="field-row full">
+        <div class="field">
+          <label class="fl" for="hoa_address">Building Address (no unit number)</label>
+          <input type="text" id="hoa_address" name="hoa_address" placeholder="e.g. 13212 sw 260th ter, homestead, fl 33032" required />
+        </div>
+      </div>
+    </div>
+
+    <!-- COI -->
+    <div class="section">
+      <div class="section-title">COI Submission</div>
+      <div class="field-row">
+        <div class="field">
+          <label class="fl" for="coi_last_submitted">Date Submitted</label>
+          <input type="date" id="coi_last_submitted" name="coi_last_submitted" />
+        </div>
+        <div class="field">
+          <label class="fl" for="coi_expiration">Expiration Date</label>
+          <input type="date" id="coi_expiration" name="coi_expiration" />
+        </div>
+      </div>
+    </div>
+
+    <!-- PROPERTY & ACCESS -->
+    <div class="section">
+      <div class="section-title">Property & Access</div>
+
+      <div class="q">
+        <label class="fl">Property Type</label>
+        <div class="radio-group" style="margin-top:6px;">
+          <label class="radio-option">
+            <input type="radio" name="property_type" value="Condominium/Building" required />
+            Condominium / Building
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="property_type" value="Townhome/Detached House" />
+            Townhome / Detached House
+          </label>
+        </div>
+      </div>
+
+      <div class="q">
+        <label class="fl">Parking Situation</label>
+        <div class="radio-group" style="margin-top:6px;">
+          <label class="radio-option"><input type="radio" name="parking" value="Guest Parking" required /> Guest Parking</label>
+          <label class="radio-option"><input type="radio" name="parking" value="Driveway" /> Driveway</label>
+          <label class="radio-option"><input type="radio" name="parking" value="Street Parking" /> Street Parking</label>
+          <label class="radio-option"><input type="radio" name="parking" value="None" /> None</label>
+        </div>
+      </div>
+
+      <div class="q">
+        <label class="fl">Special Access to Enter Property</label>
+        <div class="radio-group" style="margin-top:6px;">
+          <label class="radio-option">
+            <input type="radio" name="property_access" value="None" required
+              onchange="show('gate-code', false); show('gate-guard', false);" />
+            None
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="property_access" value="Gate Code"
+              onchange="show('gate-code', true); show('gate-guard', false);" />
+            Gate Code
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="property_access" value="Gate Guard"
+              onchange="show('gate-code', false); show('gate-guard', true);" />
+            Gate Guard
+          </label>
+        </div>
+
+        <div class="conditional" id="gate-code">
+          <label class="fl" for="gate_code" style="margin-bottom:6px; display:block;">Gate Code</label>
+          <input type="text" id="gate_code" name="gate_code" placeholder="e.g. 1234#" style="max-width:240px;" />
+        </div>
+
+        <div class="conditional" id="gate-guard">
+          <label class="fl" for="gate_guard_notes" style="margin-bottom:6px; display:block;">Gate Guard Notes</label>
+          <input type="text" id="gate_guard_notes" name="gate_guard_notes" placeholder="e.g. Show ID, call ahead, etc." />
+        </div>
+      </div>
+
+    </div>
+
+    <!-- UNIT DETAILS -->
+    <div class="section">
+      <div class="section-title">Unit Details</div>
+
+      <div class="q">
+        <label class="fl">Outdoor Unit Location</label>
+        <div class="radio-group" style="margin-top:6px;">
+          <label class="radio-option"><input type="radio" name="outdoor_unit_location" value="Ground level" required /> Ground Level</label>
+          <label class="radio-option"><input type="radio" name="outdoor_unit_location" value="Roof" /> Roof</label>
+          <label class="radio-option"><input type="radio" name="outdoor_unit_location" value="No outdoor unit" /> No Outdoor Unit</label>
+        </div>
+      </div>
+
+      <div class="q">
+        <label class="fl">Indoor Unit Location</label>
+        <div class="radio-group" style="margin-top:6px;">
+          <label class="radio-option"><input type="radio" name="indoor_unit_location" value="Closet" required /> Closet</label>
+          <label class="radio-option"><input type="radio" name="indoor_unit_location" value="Attic" /> Attic</label>
+          <label class="radio-option"><input type="radio" name="indoor_unit_location" value="Garage" /> Garage</label>
+        </div>
+      </div>
+
+      <div class="q">
+        <label class="fl">Special Access Needed to Reach Units?</label>
+        <div class="radio-group" style="margin-top:6px;">
+          <label class="radio-option">
+            <input type="radio" name="unit_special_access" value="No" required onchange="show('unit-access', false);" />
+            No
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="unit_special_access" value="Yes" onchange="show('unit-access', true);" />
+            Yes
+          </label>
+        </div>
+
+        <div class="conditional" id="unit-access">
+          <label class="fl" for="unit_access_notes" style="margin-bottom:6px; display:block;">Please Specify</label>
+          <input type="text" id="unit_access_notes" name="unit_access_notes"
+            placeholder="e.g. Roof door locked — ask maintenance at ext. 204" />
+        </div>
+      </div>
+
+      <div class="q">
+        <label class="fl">Ladder Required to Access Units?</label>
+        <div class="radio-group" style="margin-top:6px;">
+          <label class="radio-option"><input type="radio" name="ladder_required" value="FALSE" required /> No</label>
+          <label class="radio-option"><input type="radio" name="ladder_required" value="TRUE" /> Yes</label>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ADDITIONAL NOTES -->
+    <div class="section">
+      <div class="section-title">Additional Notes</div>
+      <div class="field">
+        <label class="fl" for="building_notes">Anything else the tech should know</label>
+        <textarea id="building_notes" name="building_notes"
+          placeholder="e.g. HOA required contractor license copy in addition to COI. Call front desk before heading to roof."></textarea>
+      </div>
+    </div>
+
+    <div class="submit-row">
+      <button type="submit" id="submitBtn">Submit HOA Record</button>
+    </div>
+
+  </form>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const WEBHOOK = "https://hook.us2.make.com/zoh0c39s20ebjojcnqaznex2x7wfp6wg";
+
+  function show(id, visible) {
+    document.getElementById(id).classList.toggle('visible', visible);
+  }
+
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast' + (isError ? ' error' : '');
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 4000);
+  }
+
+  document.getElementById('hoaForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+
+    const formData = new FormData(this);
+    const payload = {};
+    formData.forEach((v, k) => { payload[k] = v; });
+
+    // hardcoded — form is only submitted after COI is done
+    payload.coi_status = "Approved";
+    payload.approved_for_work = "TRUE";
+
+    payload.date_added = new Date().toLocaleDateString('en-US', {
+      month: '2-digit', day: '2-digit', year: 'numeric'
+    });
+
+    try {
+      await fetch(WEBHOOK, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      showToast('✓ HOA record submitted');
+      this.reset();
+      ['gate-code','gate-guard','unit-access'].forEach(id => show(id, false));
+    } catch (err) {
+      showToast('Submission failed — check connection', true);
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Submit HOA Record';
+  });
+</script>
+</body>
+</html>
