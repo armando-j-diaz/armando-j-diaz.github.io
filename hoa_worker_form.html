@@ -50,6 +50,22 @@
     .header h1 { font-size: 22px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
     .header p { font-size: 13px; color: var(--muted); }
 
+    .job-badge {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent-dim);
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      padding: 5px 12px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--accent);
+      margin-top: 10px;
+      width: fit-content;
+    }
+    .job-badge.visible { display: flex; }
+
     .section {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -156,6 +172,69 @@
     button[type="submit"]:active { transform: translateY(0); }
     button[type="submit"]:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
+    /* ── Search section ─────────────────────────────── */
+    .search-wrap { position: relative; }
+
+    .search-results {
+      margin-top: 8px;
+      display: none;
+    }
+    .search-results.visible { display: block; }
+
+    .search-status {
+      font-size: 13px;
+      color: var(--muted);
+      padding: 6px 0;
+    }
+
+    .result-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 11px 14px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .result-item:hover {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .result-item .r-name { font-size: 14px; font-weight: 500; color: var(--text); }
+    .result-item .r-addr { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+    .selected-hoa {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: rgba(0,229,160,0.07);
+      border: 1px solid var(--success);
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-top: 8px;
+    }
+    .selected-hoa.visible { display: flex; }
+    .selected-hoa .sh-label {
+      font-size: 11px;
+      font-family: 'IBM Plex Mono', monospace;
+      color: var(--success);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      flex-shrink: 0;
+    }
+    .selected-hoa .sh-name { font-size: 13px; color: var(--text); flex: 1; }
+    .clear-sel {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      padding: 0 2px;
+    }
+    .clear-sel:hover { color: var(--danger); }
+
+    /* ── Toast ──────────────────────────────────────── */
     .toast {
       display: none;
       position: fixed;
@@ -170,7 +249,6 @@
       z-index: 999;
       animation: slideUp 0.3s ease;
     }
-
     .toast.error { background: var(--danger); color: #fff; }
 
     @keyframes slideUp {
@@ -188,9 +266,34 @@
     <div class="eyebrow">AMH HVAC Services — Internal</div>
     <h1>HOA Property Record</h1>
     <p>Complete after COI submission. All fields feed directly into the HOA database.</p>
+    <div class="job-badge" id="jobBadge">
+      <span>JOB</span>
+      <strong id="jobBadgeNum"></strong>
+    </div>
   </div>
 
   <form id="hoaForm">
+
+    <!-- hidden fields set by JS -->
+    <input type="hidden" id="job_number" name="job_number" value="" />
+    <input type="hidden" id="existing_row_number" name="existing_row_number" value="" />
+
+    <!-- HOA SEARCH -->
+    <div class="section">
+      <div class="section-title">Load Existing HOA (optional)</div>
+      <div class="field">
+        <label class="fl" for="hoaSearch">Search by HOA name or address</label>
+        <div class="search-wrap">
+          <input type="text" id="hoaSearch" placeholder="e.g. Regency, Pembroke Pines…" autocomplete="off" />
+        </div>
+        <div class="search-results" id="searchResults"></div>
+        <div class="selected-hoa" id="selectedHoa">
+          <span class="sh-label">Loaded</span>
+          <span class="sh-name" id="selectedHoaName"></span>
+          <button type="button" class="clear-sel" title="Clear selection" onclick="clearSelection()">✕</button>
+        </div>
+      </div>
+    </div>
 
     <!-- HOA CONTACT -->
     <div class="section">
@@ -356,7 +459,7 @@
       <div class="field">
         <label class="fl" for="building_notes">Anything else the tech should know</label>
         <textarea id="building_notes" name="building_notes"
-          placeholder="e.g. HOA required BTR, etc. Call front desk before heading to roof."></textarea>
+          placeholder="e.g. HOA required contractor license copy in addition to COI. Call front desk before heading to roof."></textarea>
       </div>
     </div>
 
@@ -370,12 +473,26 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  const WEBHOOK = "https://hook.us2.make.com/zoh0c39s20ebjojcnqaznex2x7wfp6wg";
+  const WEBHOOK        = "https://hook.us2.make.com/zoh0c39s20ebjojcnqaznex2x7wfp6wg";
+  const LOOKUP_WEBHOOK = "https://hook.us2.make.com/tyre5k3itkann73w9oamtsws16h12u4w";
 
+  /* ── URL param reader ────────────────────────────── */
+  const params = new URLSearchParams(window.location.search);
+  const jobParam = params.get('job') || '';
+
+  if (jobParam) {
+    document.getElementById('job_number').value = jobParam;
+    const badge = document.getElementById('jobBadge');
+    badge.classList.add('visible');
+    document.getElementById('jobBadgeNum').textContent = jobParam;
+  }
+
+  /* ── Conditional show/hide ───────────────────────── */
   function show(id, visible) {
     document.getElementById(id).classList.toggle('visible', visible);
   }
 
+  /* ── Toast ───────────────────────────────────────── */
   function showToast(msg, isError = false) {
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -384,6 +501,91 @@
     setTimeout(() => { t.style.display = 'none'; }, 4000);
   }
 
+  /* ── HOA Search ──────────────────────────────────── */
+  let searchTimer = null;
+  const searchInput   = document.getElementById('hoaSearch');
+  const searchResults = document.getElementById('searchResults');
+  const selectedHoa   = document.getElementById('selectedHoa');
+  const selectedName  = document.getElementById('selectedHoaName');
+
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    const q = searchInput.value.trim();
+    if (q.length < 3) {
+      searchResults.classList.remove('visible');
+      searchResults.innerHTML = '';
+      return;
+    }
+    searchResults.innerHTML = '<div class="search-status">Searching…</div>';
+    searchResults.classList.add('visible');
+    searchTimer = setTimeout(() => runSearch(q), 350);
+  });
+
+  async function runSearch(q) {
+    try {
+      const res  = await fetch(LOOKUP_WEBHOOK, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ q })
+      });
+      const data = await res.json();
+
+      if (!Array.isArray(data) || data.length === 0) {
+        searchResults.innerHTML = '<div class="search-status">No matching HOAs found.</div>';
+        return;
+      }
+
+      searchResults.innerHTML = data.map((hoa, i) => `
+        <div class="result-item" data-idx="${i}" onclick="selectHoa(${i})">
+          <div class="r-name">${hoa.hoa_name || '—'}</div>
+          <div class="r-addr">${hoa.hoa_address || ''}</div>
+        </div>
+      `).join('');
+
+      // stash results for selection
+      window._searchResults = data;
+
+    } catch (err) {
+      searchResults.innerHTML = '<div class="search-status">Search failed — check connection.</div>';
+    }
+  }
+
+  function selectHoa(idx) {
+    const hoa = window._searchResults[idx];
+    if (!hoa) return;
+
+    /* ── pre-fill text / email / tel / date / textarea fields ── */
+    const fill = (id, val) => {
+      const el = document.getElementById(id);
+      if (el && val !== undefined && val !== null) el.value = val;
+    };
+
+    fill('hoa_name',           hoa.hoa_name);
+    fill('hoa_email',          hoa.hoa_email);
+    fill('hoa_phone',          hoa.hoa_phone);
+    fill('hoa_address',        hoa.hoa_address);
+    fill('coi_last_submitted', hoa.coi_last_submitted);
+    fill('coi_expiration',     hoa.coi_expiration);
+    fill('building_notes',     hoa.building_notes);
+
+    /* ── set existing_row_number so Intake 5 does updateRow ── */
+    document.getElementById('existing_row_number').value = hoa.row_number || '';
+
+    /* ── show selected badge, hide search results ── */
+    selectedName.textContent = hoa.hoa_name || 'Unknown HOA';
+    selectedHoa.classList.add('visible');
+    searchResults.classList.remove('visible');
+    searchInput.value = '';
+  }
+
+  function clearSelection() {
+    document.getElementById('existing_row_number').value = '';
+    selectedHoa.classList.remove('visible');
+    selectedName.textContent = '';
+    window._searchResults = [];
+  }
+
+  /* ── Form submit ─────────────────────────────────── */
   document.getElementById('hoaForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const btn = document.getElementById('submitBtn');
@@ -391,11 +593,14 @@
     btn.textContent = 'Submitting...';
 
     const formData = new FormData(this);
-    const payload = {};
+    const payload  = {};
     formData.forEach((v, k) => { payload[k] = v; });
 
+    // strip empty existing_row_number so Intake 5 routes to addRow
+    if (!payload.existing_row_number) delete payload.existing_row_number;
+
     // hardcoded — form is only submitted after COI is done
-    payload.coi_status = "Approved";
+    payload.coi_status      = "Approved";
     payload.approved_for_work = "TRUE";
 
     payload.date_added = new Date().toLocaleDateString('en-US', {
@@ -404,13 +609,16 @@
 
     try {
       await fetch(WEBHOOK, {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body:    JSON.stringify(payload)
       });
       showToast('✓ HOA record submitted');
       this.reset();
       ['gate-code','gate-guard','unit-access'].forEach(id => show(id, false));
+      clearSelection();
+      // keep job badge if it was set from URL
+      document.getElementById('job_number').value = jobParam;
     } catch (err) {
       showToast('Submission failed — check connection', true);
     }
