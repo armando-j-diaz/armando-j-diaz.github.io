@@ -37,7 +37,6 @@
       border-left: 3px solid var(--accent);
       padding-left: 16px;
     }
-
     .header .eyebrow {
       font-family: 'IBM Plex Mono', monospace;
       font-size: 11px;
@@ -46,9 +45,8 @@
       color: var(--accent);
       margin-bottom: 6px;
     }
-
     .header h1 { font-size: 22px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
-    .header p { font-size: 13px; color: var(--muted); }
+    .header p  { font-size: 13px; color: var(--muted); }
 
     .job-badge {
       display: none;
@@ -73,7 +71,6 @@
       padding: 24px;
       margin-bottom: 16px;
     }
-
     .section-title {
       font-family: 'IBM Plex Mono', monospace;
       font-size: 10px;
@@ -109,16 +106,13 @@
       transition: border-color 0.15s, box-shadow 0.15s;
       outline: none;
     }
-
     input:focus, textarea:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(0,194,255,0.1);
     }
-
     textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
 
     .radio-group { display: flex; gap: 10px; flex-wrap: wrap; }
-
     .radio-option {
       display: flex;
       align-items: center;
@@ -132,13 +126,11 @@
       font-size: 13px;
       color: var(--muted);
     }
-
     .radio-option input[type="radio"] {
       width: 14px; height: 14px;
       accent-color: var(--accent);
       cursor: pointer; flex-shrink: 0;
     }
-
     .radio-option:has(input:checked) {
       border-color: var(--accent);
       background: var(--accent-dim);
@@ -167,25 +159,41 @@
       cursor: pointer;
       transition: opacity 0.15s, transform 0.1s;
     }
-
     button[type="submit"]:hover { opacity: 0.88; transform: translateY(-1px); }
     button[type="submit"]:active { transform: translateY(0); }
     button[type="submit"]:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
     /* ── Search section ─────────────────────────────── */
-    .search-wrap { position: relative; }
-
-    .search-results {
-      margin-top: 8px;
-      display: none;
+    .search-wrap {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
     }
+    .search-wrap input { flex: 1; }
+
+    .search-btn {
+      background: var(--accent);
+      color: #000;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: none;
+      border-radius: 6px;
+      padding: 0 18px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+      flex-shrink: 0;
+    }
+    .search-btn:hover { opacity: 0.85; }
+    .search-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .search-results { margin-top: 8px; display: none; }
     .search-results.visible { display: block; }
 
-    .search-status {
-      font-size: 13px;
-      color: var(--muted);
-      padding: 6px 0;
-    }
+    .search-status { font-size: 13px; color: var(--muted); padding: 6px 0; }
 
     .result-item {
       background: var(--bg);
@@ -196,10 +204,7 @@
       cursor: pointer;
       transition: border-color 0.15s, background 0.15s;
     }
-    .result-item:hover {
-      border-color: var(--accent);
-      background: var(--accent-dim);
-    }
+    .result-item:hover { border-color: var(--accent); background: var(--accent-dim); }
     .result-item .r-name { font-size: 14px; font-weight: 500; color: var(--text); }
     .result-item .r-addr { font-size: 12px; color: var(--muted); margin-top: 3px; }
 
@@ -224,13 +229,9 @@
     }
     .selected-hoa .sh-name { font-size: 13px; color: var(--text); flex: 1; }
     .clear-sel {
-      background: none;
-      border: none;
-      color: var(--muted);
-      cursor: pointer;
-      font-size: 18px;
-      line-height: 1;
-      padding: 0 2px;
+      background: none; border: none;
+      color: var(--muted); cursor: pointer;
+      font-size: 18px; line-height: 1; padding: 0 2px;
     }
     .clear-sel:hover { color: var(--danger); }
 
@@ -275,7 +276,7 @@
   <form id="hoaForm">
 
     <!-- hidden fields set by JS -->
-    <input type="hidden" id="job_number" name="job_number" value="" />
+    <input type="hidden" id="job_number"          name="job_number"          value="" />
     <input type="hidden" id="existing_row_number" name="existing_row_number" value="" />
 
     <!-- HOA SEARCH -->
@@ -285,6 +286,7 @@
         <label class="fl" for="hoaSearch">Search by HOA name or address</label>
         <div class="search-wrap">
           <input type="text" id="hoaSearch" placeholder="e.g. Regency, Pembroke Pines…" autocomplete="off" />
+          <button type="button" class="search-btn" id="searchBtn" onclick="triggerSearch()">Search</button>
         </div>
         <div class="search-results" id="searchResults"></div>
         <div class="selected-hoa" id="selectedHoa">
@@ -477,7 +479,7 @@
   const LOOKUP_WEBHOOK = "https://hook.us2.make.com/tyre5k3itkann73w9oamtsws16h12u4w";
 
   /* ── URL param reader ────────────────────────────── */
-  const params = new URLSearchParams(window.location.search);
+  const params   = new URLSearchParams(window.location.search);
   const jobParam = params.get('job') || '';
 
   if (jobParam) {
@@ -502,24 +504,30 @@
   }
 
   /* ── HOA Search ──────────────────────────────────── */
-  let searchTimer = null;
   const searchInput   = document.getElementById('hoaSearch');
   const searchResults = document.getElementById('searchResults');
   const selectedHoa   = document.getElementById('selectedHoa');
   const selectedName  = document.getElementById('selectedHoaName');
+  const searchBtn     = document.getElementById('searchBtn');
 
-  searchInput.addEventListener('input', () => {
-    clearTimeout(searchTimer);
+  // trigger on Enter key as well as button click
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); triggerSearch(); }
+  });
+
+  function triggerSearch() {
     const q = searchInput.value.trim();
-    if (q.length < 3) {
-      searchResults.classList.remove('visible');
-      searchResults.innerHTML = '';
+    if (q.length < 2) {
+      searchResults.innerHTML = '<div class="search-status">Enter at least 2 characters.</div>';
+      searchResults.classList.add('visible');
       return;
     }
+    searchBtn.disabled = true;
+    searchBtn.textContent = '...';
     searchResults.innerHTML = '<div class="search-status">Searching…</div>';
     searchResults.classList.add('visible');
-    searchTimer = setTimeout(() => runSearch(q), 350);
-  });
+    runSearch(q);
+  }
 
   async function runSearch(q) {
     try {
@@ -532,29 +540,27 @@
 
       if (!Array.isArray(data) || data.length === 0) {
         searchResults.innerHTML = '<div class="search-status">No matching HOAs found.</div>';
-        return;
+      } else {
+        searchResults.innerHTML = data.map((hoa, i) => `
+          <div class="result-item" onclick="selectHoa(${i})">
+            <div class="r-name">${hoa.hoa_name || '—'}</div>
+            <div class="r-addr">${hoa.hoa_address || ''}</div>
+          </div>
+        `).join('');
+        window._searchResults = data;
       }
-
-      searchResults.innerHTML = data.map((hoa, i) => `
-        <div class="result-item" data-idx="${i}" onclick="selectHoa(${i})">
-          <div class="r-name">${hoa.hoa_name || '—'}</div>
-          <div class="r-addr">${hoa.hoa_address || ''}</div>
-        </div>
-      `).join('');
-
-      // stash results for selection
-      window._searchResults = data;
-
     } catch (err) {
       searchResults.innerHTML = '<div class="search-status">Search failed — check connection.</div>';
+    } finally {
+      searchBtn.disabled = false;
+      searchBtn.textContent = 'Search';
     }
   }
 
   function selectHoa(idx) {
-    const hoa = window._searchResults[idx];
+    const hoa = (window._searchResults || [])[idx];
     if (!hoa) return;
 
-    /* ── pre-fill text / email / tel / date / textarea fields ── */
     const fill = (id, val) => {
       const el = document.getElementById(id);
       if (el && val !== undefined && val !== null) el.value = val;
@@ -568,10 +574,8 @@
     fill('coi_expiration',     hoa.coi_expiration);
     fill('building_notes',     hoa.building_notes);
 
-    /* ── set existing_row_number so Intake 5 does updateRow ── */
     document.getElementById('existing_row_number').value = hoa.row_number || '';
 
-    /* ── show selected badge, hide search results ── */
     selectedName.textContent = hoa.hoa_name || 'Unknown HOA';
     selectedHoa.classList.add('visible');
     searchResults.classList.remove('visible');
@@ -596,14 +600,11 @@
     const payload  = {};
     formData.forEach((v, k) => { payload[k] = v; });
 
-    // strip empty existing_row_number so Intake 5 routes to addRow
     if (!payload.existing_row_number) delete payload.existing_row_number;
 
-    // hardcoded — form is only submitted after COI is done
-    payload.coi_status      = "Approved";
+    payload.coi_status        = "Approved";
     payload.approved_for_work = "TRUE";
-
-    payload.date_added = new Date().toLocaleDateString('en-US', {
+    payload.date_added        = new Date().toLocaleDateString('en-US', {
       month: '2-digit', day: '2-digit', year: 'numeric'
     });
 
@@ -615,9 +616,8 @@
       });
       showToast('✓ HOA record submitted');
       this.reset();
-      ['gate-code','gate-guard','unit-access'].forEach(id => show(id, false));
+      ['gate-code', 'gate-guard', 'unit-access'].forEach(id => show(id, false));
       clearSelection();
-      // keep job badge if it was set from URL
       document.getElementById('job_number').value = jobParam;
     } catch (err) {
       showToast('Submission failed — check connection', true);
