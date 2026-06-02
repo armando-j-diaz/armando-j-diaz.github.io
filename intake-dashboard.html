@@ -83,6 +83,16 @@
       font-size: 14px; outline: none; background: white; cursor: pointer; color: #1e293b;
       min-width: 210px;
     }
+    .filter-btn {
+      padding: 9px 14px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+      font-size: 14px; font-weight: 600; background: white; color: #1e293b;
+      cursor: pointer; white-space: nowrap; transition: background 0.2s, border-color 0.2s, color 0.2s;
+    }
+    .filter-btn:hover { border-color: #93c5fd; background: #f8fafc; }
+    .filter-btn.active {
+      background: #2563eb; border-color: #2563eb; color: white;
+    }
+    .filter-btn.active:hover { background: #1d4ed8; border-color: #1d4ed8; }
     .record-count { font-size: 13px; color: #64748b; white-space: nowrap; margin-left: auto; }
 
     /* ── TABLE ── */
@@ -200,6 +210,9 @@
       <option value="processing jotform">Processing Jotform</option>
       <option value="processing database confirmation">Processing Database Confirmation</option>
     </select>
+    <button type="button" class="filter-btn" id="recent-days-filter" onclick="toggleRecentDaysFilter()" title="Show only forms sent or accepted today or yesterday">
+      Today + Yesterday
+    </button>
     <span class="record-count" id="record-count"></span>
   </div>
 
@@ -236,6 +249,7 @@
   let allData      = [];
   let filteredData = [];
   let refreshTimer = null;
+  let recentDaysOn = false;
 
   // ─────────────────────────────────────
   //  AUTH
@@ -325,16 +339,62 @@
   // ─────────────────────────────────────
   //  FILTERS
   // ─────────────────────────────────────
+  function toggleRecentDaysFilter() {
+    recentDaysOn = !recentDaysOn;
+    const btn = document.getElementById('recent-days-filter');
+    btn.classList.toggle('active', recentDaysOn);
+    btn.setAttribute('aria-pressed', recentDaysOn ? 'true' : 'false');
+    applyFilters();
+  }
+
+  function dateKeyLocal(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  function getTodayYesterdayKeys() {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return new Set([dateKeyLocal(today), dateKeyLocal(yesterday)]);
+  }
+
+  function parseRowDate(val) {
+    if (!val || !val.trim()) return null;
+    const s = val.trim();
+    const slash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s|$)/);
+    if (slash) {
+      let year = parseInt(slash[3], 10);
+      if (year < 100) year += 2000;
+      const d = new Date(year, parseInt(slash[1], 10) - 1, parseInt(slash[2], 10));
+      return isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function rowOnTodayOrYesterday(row, allowedKeys) {
+    for (const col of [COL.DATE_SENT, COL.DATE_ACCEPTED]) {
+      const parsed = parseRowDate(row[col]);
+      if (parsed && allowedKeys.has(dateKeyLocal(parsed))) return true;
+    }
+    return false;
+  }
+
   function applyFilters() {
     const q   = document.getElementById('search-box').value.toLowerCase();
     const sel = document.getElementById('status-filter').value.toLowerCase();
+    const recentKeys = recentDaysOn ? getTodayYesterdayKeys() : null;
 
     filteredData = allData.filter(row => {
       const text      = row.join(' ').toLowerCase();
       const rowStatus = (row[COL.STATUS] || '').toLowerCase();
       const matchQ    = !q   || text.includes(q);
       const matchS    = !sel || rowStatus === sel;
-      return matchQ && matchS;
+      const matchD    = !recentDaysOn || rowOnTodayOrYesterday(row, recentKeys);
+      return matchQ && matchS && matchD;
     });
 
     renderTable();
