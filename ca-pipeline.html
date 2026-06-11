@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JET — CA Pipeline</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; padding: 16px; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+  header h1 { font-size: 1.3rem; font-weight: 700; color: #fff; }
+  header .sub { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
+  .header-right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .badge-count { background: #1e293b; border: 1px solid #334155; border-radius: 999px; padding: 4px 14px; font-size: 0.75rem; color: #94a3b8; }
+  .sync-status { font-size: 0.7rem; padding: 4px 12px; border-radius: 999px; border: 1px solid #334155; }
+  .sync-ok   { color: #4ade80; border-color: #15803d; background: #052e16; }
+  .sync-busy { color: #facc15; border-color: #854d0e; background: #292000; }
+  .sync-err  { color: #f87171; border-color: #991b1b; background: #3b1010; }
+  .add-btn { background: #0ea5e9; color: #fff; border: none; border-radius: 8px; padding: 8px 18px; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+  .add-btn:hover { background: #0284c7; }
+  .sendall-btn { background: #161b27; color: #c084fc; border: 1px solid #6d28d9; border-radius: 8px; padding: 8px 16px; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+  .sendall-btn:hover { background: #2d1b4e; }
+  .sendall-btn:disabled { opacity: 0.5; cursor: wait; }
+
+  /* User pill */
+  .user-pill { display: flex; align-items: center; gap: 6px; background: #1e293b; border: 1px solid #334155; border-radius: 999px; padding: 5px 14px; font-size: 0.72rem; color: #94a3b8; cursor: pointer; transition: border-color 0.15s; }
+  .user-pill:hover { border-color: #0ea5e9; color: #e2e8f0; }
+  .user-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: #0ea5e9; flex-shrink: 0; }
+
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; }
+  .tab { padding: 5px 12px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; cursor: pointer; border: 1.5px solid transparent; transition: all 0.15s; white-space: nowrap; opacity: 0.6; }
+  .tab.active, .tab:hover { opacity: 1; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+  .card { background: #161b27; border: 1px solid #1e293b; border-radius: 10px; padding: 14px 16px; transition: border-color 0.15s, transform 0.1s; position: relative; }
+  .card:hover { border-color: #334155; transform: translateY(-1px); }
+  .card .stage-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 10px 0 0 10px; }
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+  .customer-name { font-weight: 700; font-size: 0.95rem; color: #f1f5f9; }
+  .job-id { font-size: 0.68rem; color: #475569; margin-top: 2px; }
+  .stage-pill { font-size: 0.65rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; letter-spacing: 0.03em; }
+  .next-step { background: #0f172a; border: 1px solid #1e3a5f; border-radius: 6px; padding: 7px 10px; font-size: 0.75rem; color: #93c5fd; display: flex; align-items: flex-start; gap: 7px; margin-bottom: 8px; }
+  .summary-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+  .stat-box { background: #161b27; border: 1px solid #1e293b; border-radius: 8px; padding: 8px 14px; font-size: 0.72rem; color: #64748b; display: flex; flex-direction: column; gap: 1px; }
+  .stat-box strong { font-size: 1.1rem; font-weight: 700; color: #e2e8f0; }
+
+  /* ── Notes section ── */
+  .notes-section { background: #0d1117; border: 1px solid #1e293b; border-radius: 8px; overflow: hidden; margin-bottom: 4px; }
+  .notes-header { display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; border-bottom: 1px solid #1e293b; }
+  .notes-label { font-size: 0.65rem; font-weight: 700; color: #475569; letter-spacing: 0.06em; text-transform: uppercase; }
+  .notes-save-indicator { font-size: 0.62rem; color: #475569; transition: color 0.3s; }
+  .notes-save-indicator.saving { color: #facc15; }
+  .notes-save-indicator.saved  { color: #4ade80; }
+  .notes-body {
+    padding: 8px 10px;
+    font-size: 0.78rem;
+    color: #94a3b8;
+    min-height: 60px;
+    outline: none;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .notes-body:focus { color: #e2e8f0; }
+  .notes-body:empty:before { content: attr(data-placeholder); color: #334155; font-style: italic; }
+  .notes-meta { padding: 4px 10px 6px; font-size: 0.62rem; color: #334155; border-top: 1px solid #1a2035; }
+
+  .s0  { color: #a5b4fc; background: #1e1b4b; border-color: #4338ca; }
+  .s0-bar { background: #6366f1; }
+  .s1  { color: #c084fc; background: #2d1b4e; border-color: #6d28d9; }
+  .s1-bar { background: #9333ea; }
+  .s2  { color: #f87171; background: #3b1010; border-color: #991b1b; }
+  .s2-bar { background: #ef4444; }
+  .s3  { color: #fb923c; background: #2c1a0a; border-color: #9a3412; }
+  .s3-bar { background: #f97316; }
+  .s4  { color: #facc15; background: #292000; border-color: #854d0e; }
+  .s4-bar { background: #eab308; }
+  .s5  { color: #4ade80; background: #052e16; border-color: #15803d; }
+  .s5-bar { background: #22c55e; }
+  .s6  { color: #34d399; background: #0a2318; border-color: #065f46; }
+  .s6-bar { background: #10b981; }
+  .s7  { color: #38bdf8; background: #082032; border-color: #075985; }
+  .s7-bar { background: #0ea5e9; }
+  .s8  { color: #94a3b8; background: #1a1f2e; border-color: #334155; }
+  .s8-bar { background: #475569; }
+  .filter-all { color: #e2e8f0; background: #1e293b; border-color: #334155; }
+  .filter-all.active { background: #334155; opacity: 1; }
+
+  select.stage-select { background: #0f1117; color: #e2e8f0; border: 1px solid #334155; border-radius: 6px; padding: 4px 8px; font-size: 0.72rem; margin-top: 8px; width: 100%; }
+  .done-btn { margin-top: 6px; width: 100%; padding: 6px; border: none; background: #1e293b; color: #94a3b8; border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer; }
+  .done-btn:hover { background: #ef4444; color: #fff; }
+
+  /* Send update button */
+  .send-btn { margin-top: 8px; width: 100%; padding: 7px; border: 1px solid #6d28d9; background: #1c1230; color: #c084fc; border-radius: 6px; font-size: 0.72rem; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+  .send-btn:hover { background: #2d1b4e; }
+  .send-btn:disabled { cursor: wait; opacity: 0.7; }
+  .send-btn.sent   { border-color: #15803d; background: #052e16; color: #4ade80; cursor: default; }
+  .send-btn.dup    { border-color: #334155; background: #1a1f2e; color: #64748b; cursor: default; }
+  .send-btn.failed { border-color: #991b1b; background: #3b1010; color: #f87171; }
+
+  .followup-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .followup-row input[type="datetime-local"] { flex: 1; background: #0f1117; border: 1px solid #334155; border-radius: 6px; padding: 5px 9px; color: #e2e8f0; font-size: 0.72rem; outline: none; font-family: inherit; color-scheme: dark; }
+  .followup-row input:focus { border-color: #0ea5e9; }
+  .followup-label { font-size: 0.68rem; color: #64748b; white-space: nowrap; }
+  .followup-badge { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 600; padding: 5px 10px; border-radius: 6px; margin-top: 8px; width: 100%; cursor: default; }
+  .fu-overdue { background: #3b1010; color: #f87171; border: 1px solid #991b1b; }
+  .fu-today   { background: #292000; color: #facc15; border: 1px solid #854d0e; }
+  .fu-soon    { background: #082032; color: #38bdf8; border: 1px solid #075985; }
+  .fu-ok      { background: #0a1a0a; color: #4ade80; border: 1px solid #15803d; }
+  .fu-none    { background: #161b27; color: #475569; border: 1px dashed #1e293b; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #161b27; border: 1px solid #334155; border-radius: 14px; padding: 24px; width: 100%; max-width: 420px; margin: 16px; max-height: 90vh; overflow-y: auto; }
+  .modal h2 { font-size: 1rem; font-weight: 700; margin-bottom: 18px; color: #f1f5f9; }
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 0.72rem; color: #64748b; margin-bottom: 5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+  .form-group input, .form-group select, .form-group textarea { width: 100%; background: #0f1117; border: 1px solid #334155; border-radius: 8px; padding: 9px 12px; color: #e2e8f0; font-size: 0.85rem; outline: none; font-family: inherit; }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #0ea5e9; }
+  .form-group textarea { min-height: 60px; resize: vertical; }
+  .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 4px; }
+  .btn-cancel { flex: 1; padding: 9px; border: 1px solid #334155; background: transparent; color: #94a3b8; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+  .btn-cancel:hover { background: #1e293b; }
+  .btn-save { flex: 2; padding: 9px; border: none; background: #0ea5e9; color: #fff; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+  .btn-save:hover { background: #0284c7; }
+  .urgency-row { display: flex; gap: 8px; }
+  .urg-opt { flex: 1; padding: 7px; border-radius: 8px; border: 1.5px solid #334155; text-align: center; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: transparent; color: #64748b; }
+  .urg-opt.sel-high { border-color: #ef4444; background: #3b1010; color: #f87171; }
+  .urg-opt.sel-med  { border-color: #f97316; background: #2c1a0a; color: #fb923c; }
+  .urg-opt.sel-low  { border-color: #22c55e; background: #052e16; color: #4ade80; }
+
+  /* Name prompt overlay */
+  .name-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; align-items: center; justify-content: center; }
+  .name-overlay.open { display: flex; }
+  .name-box { background: #161b27; border: 1px solid #334155; border-radius: 14px; padding: 28px; width: 100%; max-width: 340px; margin: 16px; text-align: center; }
+  .name-box h2 { font-size: 1rem; font-weight: 700; color: #f1f5f9; margin-bottom: 8px; }
+  .name-box p { font-size: 0.78rem; color: #64748b; margin-bottom: 18px; }
+  .name-box input { width: 100%; background: #0f1117; border: 1px solid #334155; border-radius: 8px; padding: 10px 14px; color: #e2e8f0; font-size: 0.9rem; outline: none; font-family: inherit; margin-bottom: 12px; text-align: center; }
+  .name-box input:focus { border-color: #0ea5e9; }
+  .name-box button { width: 100%; padding: 10px; background: #0ea5e9; color: #fff; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+  .name-box button:hover { background: #0284c7; }
+</style>
+</head>
+<body>
+
+<!-- Name prompt (shows once) -->
+<div class="name-overlay" id="name-overlay">
+  <div class="name-box">
+    <h2>👤 Who are you?</h2>
+    <p>Your name will be saved with every update so your partner knows who made changes.</p>
+    <input type="text" id="name-input" placeholder="e.g. Javier" maxlength="30">
+    <button onclick="saveName()">Save & Continue</button>
+  </div>
+</div>
+
+<header>
+  <div>
+    <h1>⚡ JET — CA Pipeline</h1>
+    <div class="sub">AHS Contractor · Synced with Google Sheets</div>
+  </div>
+  <div class="header-right">
+    <div class="user-pill" onclick="promptName()" title="Click to change name">
+      <span class="dot"></span>
+      <span id="user-display">…</span>
+    </div>
+    <div class="sync-status sync-busy" id="sync-status">⬤ Loading…</div>
+    <div class="badge-count" id="total-count">— jobs</div>
+    <button class="sendall-btn" id="sendall-btn" onclick="sendAll()">📨 Send All Updates</button>
+    <button class="add-btn" onclick="openModal()">+ Add Job</button>
+  </div>
+</header>
+
+<div class="summary-bar" id="summary-bar"></div>
+<div class="tabs" id="tabs"></div>
+<div class="grid" id="grid"></div>
+
+<!-- Add Job Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h2>➕ Add New Job</h2>
+    <div class="modal-row">
+      <div class="form-group">
+        <label>WO Number</label>
+        <input type="text" id="f-id" placeholder="e.g. 51882829">
+      </div>
+      <div class="form-group">
+        <label>Job Type</label>
+        <select id="f-type">
+          <option value="AC">AC</option>
+          <option value="HTG">HTG</option>
+          <option value="HTG XFER">HTG XFER</option>
+          <option value="AC RECALL">AC RECALL</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Customer Name</label>
+      <input type="text" id="f-customer" placeholder="First Last">
+    </div>
+    <div class="form-group">
+      <label>Current Stage</label>
+      <select id="f-stage">
+        <option value="Paused">Paused (new / unclassified)</option>
+        <option value="N. Xfer to WSA">N. Xfer to WSA</option>
+        <option value="AUTHO Required">AUTHO Required</option>
+        <option value="AUTHO Submitted">AUTHO Submitted</option>
+        <option value="N. Prepare Quote">N. Prepare Quote</option>
+        <option value="N. Send Quote">N. Send Quote</option>
+        <option value="N. Follow Up / Pending" selected>N. Follow Up / Pending</option>
+        <option value="N. Order Parts">N. Order Parts</option>
+        <option value="Waiting for Parts">Waiting for Parts</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Urgency</label>
+      <div class="urgency-row">
+        <div class="urg-opt sel-high" id="u-high" onclick="selectUrgency('high')">🔴 High</div>
+        <div class="urg-opt" id="u-med" onclick="selectUrgency('med')">🟠 Med</div>
+        <div class="urg-opt" id="u-low" onclick="selectUrgency('low')">🟢 Low</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Initial Notes (optional)</label>
+      <textarea id="f-note" placeholder="e.g. Customer thinking of upgrade, NCC pending…"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="addJob()">Add to Pipeline</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────
+let SCRIPT_URL = localStorage.getItem('jet_script_url') || 'https://script.google.com/macros/s/AKfycbxFpzTs94eFmg9yY6QfM-JeM3IMWkB5sj7Dsq_VaeD1s88kt-4kMFSMt9qKOeGW2aa3/exec';
+const WEBHOOK_URL = 'https://hook.us2.make.com/7nqt4plxv8moekckpga1mwkec4kb9o1k';
+const REFRESH_MS = 75000; // background re-sync from sheet
+
+const STAGES = [
+  { id: 's0', label: 'Paused',                   short: 'Paused',      next: 'New paused job from Dispatch — review it and set its real pipeline stage' },
+  { id: 's1', label: 'N. Xfer to WSA',           short: 'Xfer WSA',    next: 'Transfer job to WSA system now — do not delay' },
+  { id: 's2', label: 'AUTHO Required',           short: 'AUTHO Req',   next: 'Submit authorization to AHS — include diagnosis + estimated cost' },
+  { id: 's3', label: 'AUTHO Submitted',          short: 'AUTHO Sent',  next: 'Follow up with AHS — confirm AUTHO approved or denied' },
+  { id: 's4', label: 'N. Prepare Quote',         short: 'Prep Quote',  next: 'Build quote in Housecall Pro — include NCC and all repair options' },
+  { id: 's5', label: 'N. Send Quote',            short: 'Send Quote',  next: 'Send quote to customer — call to confirm they received it' },
+  { id: 's6', label: 'N. Follow Up / Pending',   short: 'Follow Up',   next: 'Call customer — confirm quote received, answer questions, push for decision' },
+  { id: 's7', label: 'N. Order Parts',           short: 'Order Parts', next: 'Order parts now — confirm ETA and schedule install date' },
+  { id: 's8', label: 'Waiting for Parts',        short: 'Waiting',     next: 'Parts ordered — check ETA daily, keep customer updated' },
+];
+
+// Stages with a one-tap Dispatch status message (must match the Make scenario routes + ledger keys)
+const SENDABLE = { s3: 'autho_submitted', s5: 'send_quote', s7: 'order_parts' };
+
+const STAGE_MAP = {};
+STAGES.forEach(s => { STAGE_MAP[s.label] = s.id; });
+function stageId(label) { return STAGE_MAP[label] || 's6'; }
+function stageObj(id) { return STAGES.find(s => s.id === id) || STAGES[6]; }
+function stageLabel(id) { return stageObj(id).label; }
+
+let JOBS = [];
+let activeStage = 'all';
+let selectedUrgency = 'high';
+let syncTimer = {};
+let notesTimer = {};
+let lastEditAt = 0;
+let sendingAll = false;
+const SEND_STATE = {}; // jobId -> 'sending' | 'sent' | 'duplicate' | 'not_found' | 'error'
+
+// ─── USER IDENTITY ─────────────────────────────────────────
+function getCurrentUser() { return localStorage.getItem('jet_user_name') || ''; }
+function saveName() {
+  const name = document.getElementById('name-input').value.trim();
+  if (!name) return;
+  localStorage.setItem('jet_user_name', name);
+  document.getElementById('user-display').textContent = name;
+  document.getElementById('name-overlay').classList.remove('open');
+}
+function promptName() {
+  document.getElementById('name-input').value = getCurrentUser();
+  document.getElementById('name-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('name-input').focus(), 100);
+}
+document.getElementById('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveName(); });
+
+// ─── SHEET SYNC ────────────────────────────────────────────
+function setSyncStatus(state, msg) {
+  const el = document.getElementById('sync-status');
+  el.className = 'sync-status sync-' + state;
+  el.textContent = '⬤ ' + msg;
+}
+
+async function loadFromSheet() {
+  if (!SCRIPT_URL) { setSyncStatus('err', 'No script URL'); return; }
+  setSyncStatus('busy', 'Loading…');
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=getAll');
+    const data = await res.json();
+    if (data.rows) {
+      JOBS = data.rows.filter(r => r.WO && r.Customer).map(r => ({
+        id: String(r.WO),
+        customer: r.Customer,
+        type: r.Type || 'AC',
+        stage: stageId(r.Stage),
+        urgency: r.Urgency || 'med',
+        age: parseInt(r.Age) || 0,
+        note: r.Note || '',
+        followup: r.FollowUp || '',
+        updatedBy: r.UpdatedBy || '',
+        updatedAt: r.UpdatedAt || '',
+        done: false,
+        rowIndex: r.rowIndex
+      }));
+      setSyncStatus('ok', 'Synced · ' + new Date().toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit'}));
+      render();
+    }
+  } catch(e) {
+    setSyncStatus('err', 'Connection failed');
+  }
+}
+
+// Background refresh — paused unless idle, so it never eats an edit in progress
+setInterval(() => {
+  if (document.querySelector('.modal-overlay.open') || document.querySelector('.name-overlay.open')) return;
+  const ae = document.activeElement;
+  if (ae && (ae.isContentEditable || ['INPUT','SELECT','TEXTAREA'].includes(ae.tagName))) return;
+  if (Date.now() - lastEditAt < 10000) return;
+  if (sendingAll) return;
+  loadFromSheet();
+}, REFRESH_MS);
+
+async function pushRow(job) {
+  if (!SCRIPT_URL) return;
+  setSyncStatus('busy', 'Saving…');
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      body: JSON.stringify({
+        action: job.rowIndex ? 'update' : 'add',
+        row: {
+          WO: job.id,
+          Customer: job.customer,
+          Type: job.type,
+          Stage: stageLabel(job.stage),
+          Urgency: job.urgency,
+          Age: job.age,
+          Note: job.note,
+          FollowUp: job.followup,
+          UpdatedBy: job.updatedBy,
+          UpdatedAt: job.updatedAt,
+          rowIndex: job.rowIndex
+        }
+      })
+    });
+    setSyncStatus('ok', 'Saved · ' + new Date().toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit'}));
+  } catch(e) {
+    setSyncStatus('err', 'Save failed — check connection');
+  }
+}
+
+async function deleteRow(job) {
+  if (!SCRIPT_URL || !job.rowIndex) return;
+  await fetch(SCRIPT_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify({ action: 'delete', rowIndex: job.rowIndex })
+  });
+}
+
+function stampUpdate(job) {
+  lastEditAt = Date.now();
+  const user = getCurrentUser();
+  if (user) {
+    job.updatedBy = user;
+    job.updatedAt = new Date().toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true });
+  }
+}
+
+function debouncePush(job) {
+  lastEditAt = Date.now();
+  clearTimeout(syncTimer[job.id]);
+  syncTimer[job.id] = setTimeout(() => pushRow(job), 1200);
+}
+
+// ─── STATUS MESSAGE SENDING (manual, ledger-gated) ────────
+function canSend(job) {
+  return !!SENDABLE[job.stage] && /^\d+$/.test(job.id);
+}
+
+function sendBtnHtml(job) {
+  if (!canSend(job)) return '';
+  const st = SEND_STATE[job.id + '|' + job.stage];
+  const s = stageObj(job.stage);
+  if (st === 'sending')   return `<button class="send-btn" disabled>⏳ Sending…</button>`;
+  if (st === 'sent')      return `<button class="send-btn sent" disabled>✓ Update sent</button>`;
+  if (st === 'duplicate') return `<button class="send-btn dup" disabled>✓ Already sent for this stage</button>`;
+  if (st === 'not_found') return `<button class="send-btn failed" onclick="sendUpdate('${job.id}','${job.stage}')">⚠️ WO not found in Dispatch — retry</button>`;
+  if (st === 'error')     return `<button class="send-btn failed" onclick="sendUpdate('${job.id}','${job.stage}')">⚠️ Failed — tap to retry</button>`;
+  return `<button class="send-btn" onclick="sendUpdate('${job.id}','${job.stage}')">📨 Send "${s.short}" status text</button>`;
+}
+
+async function sendUpdate(jobId, stage) {
+  const key = jobId + '|' + stage;
+  SEND_STATE[key] = 'sending';
+  render();
+  try {
+    const res = await fetch(`${WEBHOOK_URL}?wo=${encodeURIComponent(jobId)}&stage=${SENDABLE[stage]}`);
+    const data = await res.json();
+    SEND_STATE[key] = (data.status === 'sent' || data.status === 'duplicate' || data.status === 'not_found') ? data.status : 'error';
+  } catch(e) {
+    SEND_STATE[key] = 'error';
+  }
+  render();
+  return SEND_STATE[key];
+}
+
+async function sendAll() {
+  const eligible = JOBS.filter(j => !j.done && canSend(j) && !['sent','duplicate'].includes(SEND_STATE[j.id + '|' + j.stage]));
+  if (!eligible.length) { alert('No jobs are in a sendable stage (AUTHO Submitted, Send Quote, Order Parts).'); return; }
+  const list = eligible.map(j => `• ${j.customer} — ${stageObj(j.stage).label}`).join('\n');
+  if (!confirm(`Are you sure? This will send a status text to ${eligible.length} customer(s):\n\n${list}\n\nCustomers who already received this stage's message are skipped automatically by the ledger.`)) return;
+
+  sendingAll = true;
+  const btn = document.getElementById('sendall-btn');
+  btn.disabled = true;
+  let sent = 0, skipped = 0, failed = 0;
+  for (const j of eligible) {
+    btn.textContent = `📨 Sending ${sent + skipped + failed + 1}/${eligible.length}…`;
+    const r = await sendUpdate(j.id, j.stage);
+    if (r === 'sent') sent++;
+    else if (r === 'duplicate') skipped++;
+    else failed++;
+    await new Promise(rs => setTimeout(rs, 700));
+  }
+  sendingAll = false;
+  btn.disabled = false;
+  btn.textContent = '📨 Send All Updates';
+  alert(`Done.\n✓ Sent: ${sent}\n↩︎ Skipped (already sent): ${skipped}\n⚠️ Failed / not found: ${failed}`);
+}
+
+// ─── UI HELPERS ────────────────────────────────────────────
+function urgEmoji(u) { return u === 'high' ? '🔴' : u === 'med' ? '🟠' : '🟢'; }
+
+function ageDays(age) {
+  if (age <= 0) return 'added today';
+  if (age === 1) return '1 day old';
+  if (age < 7)  return `${age} days old`;
+  if (age < 14) return `${age} days — 1 week+`;
+  return `⚠️ ${age} days — aging`;
+}
+
+function followupBadge(job) {
+  const val = job.followup;
+  if (!val) return `<div class="followup-badge fu-none">📅 Set follow-up date &amp; time</div>`;
+  const dt = new Date(val);
+  const now = new Date();
+  const diffH = (dt - now) / 36e5;
+  const label = dt.toLocaleString('en-US', { weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true });
+  if (diffH < 0)  return `<div class="followup-badge fu-overdue">🔴 OVERDUE — ${label}</div>`;
+  if (diffH < 2)  return `<div class="followup-badge fu-today">⚠️ Follow up NOW — ${label}</div>`;
+  if (diffH < 24) return `<div class="followup-badge fu-today">🟡 Today — ${label}</div>`;
+  if (diffH < 48) return `<div class="followup-badge fu-soon">🔵 Tomorrow — ${label}</div>`;
+  return `<div class="followup-badge fu-ok">✅ ${label}</div>`;
+}
+
+function notesMeta(job) {
+  if (!job.updatedBy && !job.updatedAt) return '';
+  if (job.updatedBy && job.updatedAt) return `✏️ ${job.updatedBy} · ${job.updatedAt}`;
+  if (job.updatedBy) return `✏️ ${job.updatedBy}`;
+  return `✏️ ${job.updatedAt}`;
+}
+
+// ─── RENDER ────────────────────────────────────────────────
+function render() {
+  const active = JOBS.filter(j => !j.done);
+  const filtered = activeStage === 'all' ? active : active.filter(j => j.stage === activeStage);
+
+  const byStage = {};
+  active.forEach(j => { byStage[j.stage] = (byStage[j.stage] || 0) + 1; });
+  document.getElementById('total-count').textContent = `${active.length} active jobs`;
+
+  document.getElementById('summary-bar').innerHTML = STAGES
+    .filter(s => byStage[s.id])
+    .map(s => `<div class="stat-box"><strong>${byStage[s.id]}</strong><span>${s.short}</span></div>`)
+    .join('');
+
+  document.getElementById('tabs').innerHTML =
+    `<div class="tab filter-all ${activeStage === 'all' ? 'active' : ''}" onclick="setStage('all')">All (${active.length})</div>` +
+    STAGES.map(s =>
+      `<div class="tab ${s.id} ${activeStage === s.id ? 'active' : ''}" onclick="setStage('${s.id}')">${s.short}${byStage[s.id] ? ' (' + byStage[s.id] + ')' : ''}</div>`
+    ).join('');
+
+  const urgOrder = { high: 0, med: 1, low: 2 };
+  const sorted = [...filtered].sort((a, b) => {
+    // Paused (unclassified) jobs always float to the top
+    const p = (a.stage === 's0' ? 0 : 1) - (b.stage === 's0' ? 0 : 1);
+    if (p !== 0) return p;
+    const u = (urgOrder[a.urgency] || 2) - (urgOrder[b.urgency] || 2);
+    return u !== 0 ? u : b.age - a.age;
+  });
+
+  const meta = notesMeta;
+  document.getElementById('grid').innerHTML = sorted.map(j => {
+    const s = stageObj(j.stage);
+    const metaLine = meta(j);
+    return `
+    <div class="card" id="card-${j.id}">
+      <div class="stage-bar ${j.stage}-bar"></div>
+      <div class="card-top">
+        <div>
+          <div class="customer-name">${urgEmoji(j.urgency)} ${j.customer}</div>
+          <div class="job-id">#${j.id} · ${j.type} · ${ageDays(j.age)}</div>
+        </div>
+        <div class="stage-pill ${j.stage}">${s.short}</div>
+      </div>
+      <div class="next-step"><span>→</span><span>${s.next}</span></div>
+
+      <div class="notes-section">
+        <div class="notes-header">
+          <span class="notes-label">📝 Notes</span>
+          <span class="notes-save-indicator" id="notes-ind-${j.id}"></span>
+        </div>
+        <div class="notes-body"
+             contenteditable="true"
+             data-id="${j.id}"
+             data-placeholder="Type anything — customer thinking of upgrade, parts ETA, callback scheduled…"
+             oninput="onNotesInput('${j.id}', this)"
+             onblur="onNotesBlur('${j.id}', this)">${j.note}</div>
+        ${metaLine ? `<div class="notes-meta">${metaLine}</div>` : ''}
+      </div>
+
+      ${followupBadge(j)}
+      <div class="followup-row">
+        <span class="followup-label">📅</span>
+        <input type="datetime-local" value="${j.followup || ''}"
+               onchange="updateField('${j.id}', 'followup', this.value); render();"
+               title="Set next follow-up">
+      </div>
+      <select class="stage-select" onchange="updateStage('${j.id}', this.value)">
+        ${STAGES.map(st => `<option value="${st.id}" ${st.id === j.stage ? 'selected' : ''}>${st.label}</option>`).join('')}
+      </select>
+      ${sendBtnHtml(j)}
+      <button class="done-btn" onclick="markDone('${j.id}', '${j.customer.replace(/'/g,"\\'")}')">✅ Mark Complete</button>
+    </div>`;
+  }).join('');
+}
+
+function setStage(id) { activeStage = id; render(); }
+
+// ─── NOTES AUTO-SAVE ───────────────────────────────────────
+function onNotesInput(jobId, el) {
+  lastEditAt = Date.now();
+  const ind = document.getElementById('notes-ind-' + jobId);
+  if (ind) { ind.textContent = 'saving…'; ind.className = 'notes-save-indicator saving'; }
+  clearTimeout(notesTimer[jobId]);
+  notesTimer[jobId] = setTimeout(() => {
+    const job = JOBS.find(j => j.id === jobId);
+    if (!job) return;
+    job.note = el.innerText.trim();
+    stampUpdate(job);
+    pushRow(job).then(() => {
+      if (ind) { ind.textContent = '✓ saved'; ind.className = 'notes-save-indicator saved'; }
+      // Update meta line without full re-render
+      const card = document.getElementById('card-' + jobId);
+      if (card) {
+        let metaEl = card.querySelector('.notes-meta');
+        const metaLine = notesMeta(job);
+        if (metaLine) {
+          if (metaEl) { metaEl.textContent = metaLine; }
+          else {
+            metaEl = document.createElement('div');
+            metaEl.className = 'notes-meta';
+            metaEl.textContent = metaLine;
+            card.querySelector('.notes-section').appendChild(metaEl);
+          }
+        }
+      }
+      setTimeout(() => { if (ind) { ind.textContent = ''; ind.className = 'notes-save-indicator'; } }, 2500);
+    });
+  }, 1500);
+}
+
+function onNotesBlur(jobId, el) {
+  // Flush immediately on blur if there's a pending timer
+  if (notesTimer[jobId]) {
+    clearTimeout(notesTimer[jobId]);
+    const job = JOBS.find(j => j.id === jobId);
+    if (!job) return;
+    job.note = el.innerText.trim();
+    stampUpdate(job);
+    debouncePush(job);
+    const ind = document.getElementById('notes-ind-' + jobId);
+    if (ind) { ind.textContent = ''; ind.className = 'notes-save-indicator'; }
+  }
+}
+
+// ─── FIELD UPDATES ─────────────────────────────────────────
+function updateField(jobId, field, value) {
+  const job = JOBS.find(j => String(j.id) === String(jobId));
+  if (!job) return;
+  job[field] = value;
+  stampUpdate(job);
+  debouncePush(job);
+}
+
+function updateStage(jobId, sid) {
+  const job = JOBS.find(j => String(j.id) === String(jobId));
+  if (!job) return;
+  job.stage = sid;
+  stampUpdate(job);
+  debouncePush(job);
+  render();
+}
+
+function markDone(id, name) {
+  if (confirm(`Mark ${name} as complete and remove from pipeline?`)) {
+    const job = JOBS.find(j => j.id === id);
+    if (job) { job.done = true; deleteRow(job); render(); }
+  }
+}
+
+// ─── MODAL ─────────────────────────────────────────────────
+function openModal() { document.getElementById('modal-overlay').classList.add('open'); }
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  ['f-id','f-customer','f-note'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-stage').value = 'N. Follow Up / Pending';
+  document.getElementById('f-type').value = 'AC';
+  selectUrgency('high');
+}
+function selectUrgency(u) {
+  selectedUrgency = u;
+  ['high','med','low'].forEach(x => {
+    document.getElementById('u-'+x).className = 'urg-opt' + (x === u ? ' sel-'+x : '');
+  });
+}
+function addJob() {
+  const customer = document.getElementById('f-customer').value.trim();
+  if (!customer) { alert('Customer name is required.'); return; }
+  const id = document.getElementById('f-id').value.trim() || ('MAN-' + Date.now());
+  const user = getCurrentUser();
+  const now = new Date().toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true });
+  const job = {
+    id, customer,
+    type: document.getElementById('f-type').value,
+    stage: stageId(document.getElementById('f-stage').value),
+    urgency: selectedUrgency,
+    age: 0,
+    note: document.getElementById('f-note').value.trim(),
+    followup: '',
+    updatedBy: user,
+    updatedAt: now,
+    done: false,
+    rowIndex: null
+  };
+  JOBS.unshift(job);
+  pushRow(job);
+  activeStage = 'all';
+  closeModal();
+  render();
+}
+
+document.getElementById('modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ─── INIT ──────────────────────────────────────────────────
+const storedName = getCurrentUser();
+if (storedName) {
+  document.getElementById('user-display').textContent = storedName;
+} else {
+  document.getElementById('name-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('name-input').focus(), 100);
+}
+
+loadFromSheet();
+</script>
+</body>
+</html>
