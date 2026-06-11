@@ -21,6 +21,9 @@
   .sendall-btn { background: #161b27; color: #c084fc; border: 1px solid #6d28d9; border-radius: 8px; padding: 8px 16px; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
   .sendall-btn:hover { background: #2d1b4e; }
   .sendall-btn:disabled { opacity: 0.5; cursor: wait; }
+  .sync-btn { background: #161b27; color: #38bdf8; border: 1px solid #075985; border-radius: 8px; padding: 8px 16px; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+  .sync-btn:hover { background: #082032; }
+  .sync-btn:disabled { opacity: 0.5; cursor: wait; }
 
   /* User pill */
   .user-pill { display: flex; align-items: center; gap: 6px; background: #1e293b; border: 1px solid #334155; border-radius: 999px; padding: 5px 14px; font-size: 0.72rem; color: #94a3b8; cursor: pointer; transition: border-color 0.15s; }
@@ -84,6 +87,8 @@
   .s8-bar { background: #475569; }
   .filter-all { color: #e2e8f0; background: #1e293b; border-color: #334155; }
   .filter-all.active { background: #334155; opacity: 1; }
+  .filter-completed { color: #4ade80; background: #0a1a0a; border-color: #15803d; margin-left: auto; }
+  .completed-stamp { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 600; padding: 5px 10px; border-radius: 6px; margin-top: 8px; background: #0a1a0a; color: #4ade80; border: 1px solid #15803d; }
 
   select.stage-select { background: #0f1117; color: #e2e8f0; border: 1px solid #334155; border-radius: 6px; padding: 4px 8px; font-size: 0.72rem; margin-top: 8px; width: 100%; }
   .done-btn { margin-top: 6px; width: 100%; padding: 6px; border: none; background: #1e293b; color: #94a3b8; border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer; }
@@ -166,6 +171,7 @@
     </div>
     <div class="sync-status sync-busy" id="sync-status">⬤ Loading…</div>
     <div class="badge-count" id="total-count">— jobs</div>
+    <button class="sync-btn" id="sync-btn" onclick="syncNow()" title="Pull paused jobs from Dispatch into the sheet right now">🔄 Sync Dispatch</button>
     <button class="sendall-btn" id="sendall-btn" onclick="sendAll()">📨 Send All Updates</button>
     <button class="add-btn" onclick="openModal()">+ Add Job</button>
   </div>
@@ -235,6 +241,7 @@
 // ─── CONFIG ───────────────────────────────────────────────
 let SCRIPT_URL = localStorage.getItem('jet_script_url') || 'https://script.google.com/macros/s/AKfycbxFpzTs94eFmg9yY6QfM-JeM3IMWkB5sj7Dsq_VaeD1s88kt-4kMFSMt9qKOeGW2aa3/exec';
 const WEBHOOK_URL = 'https://hook.us2.make.com/7nqt4plxv8moekckpga1mwkec4kb9o1k';
+const SYNC_WEBHOOK_URL = 'https://hook.us2.make.com/uo5re5woo5pksp6ftbc70laju6h4l7tt';
 const REFRESH_MS = 75000; // background re-sync from sheet
 
 const STAGES = [
@@ -383,6 +390,23 @@ function debouncePush(job) {
   syncTimer[job.id] = setTimeout(() => pushRow(job), 1200);
 }
 
+// ─── ON-DEMAND DISPATCH SYNC ───────────────────────────────
+async function syncNow() {
+  const btn = document.getElementById('sync-btn');
+  btn.disabled = true;
+  btn.textContent = '🔄 Syncing…';
+  try {
+    const res = await fetch(SYNC_WEBHOOK_URL);
+    const data = await res.json();
+    const n = parseInt(data.inserted) || 0;
+    btn.textContent = n > 0 ? `✓ ${n} new job${n > 1 ? 's' : ''} added` : '✓ Up to date';
+    await loadFromSheet();
+  } catch(e) {
+    btn.textContent = '⚠️ Sync failed — retry';
+  }
+  setTimeout(() => { btn.textContent = '🔄 Sync Dispatch'; btn.disabled = false; }, 4000);
+}
+
 // ─── STATUS MESSAGE SENDING (manual, ledger-gated) ────────
 function canSend(job) {
   return !!SENDABLE[job.stage] && /^\d+$/.test(job.id);
@@ -489,7 +513,15 @@ function render() {
     `<div class="tab filter-all ${activeStage === 'all' ? 'active' : ''}" onclick="setStage('all')">All (${active.length})</div>` +
     STAGES.map(s =>
       `<div class="tab ${s.id} ${activeStage === s.id ? 'active' : ''}" onclick="setStage('${s.id}')">${s.short}${byStage[s.id] ? ' (' + byStage[s.id] + ')' : ''}</div>`
-    ).join('');
+    ).join('') +
+    `<div class="tab filter-completed ${activeStage === 'completed' ? 'active' : ''}" onclick="setStage('completed')">✅ Done${COMPLETED.length ? ' (' + COMPLETED.length + ')' : ''}</div>`;
+
+  if (activeStage === 'completed') {
+    document.getElementById('grid').innerHTML = COMPLETED.length
+      ? COMPLETED.map(completedCardHtml).join('')
+      : '<div style="color:#475569;font-size:0.85rem;padding:20px">Nothing completed yet — jobs marked complete in Dispatch land here automatically.</div>';
+    return;
+  }
 
   const urgOrder = { high: 0, med: 1, low: 2 };
   const sorted = [...filtered].sort((a, b) => {
@@ -546,7 +578,41 @@ function render() {
   }).join('');
 }
 
-function setStage(id) { activeStage = id; render(); }
+function setStage(id) {
+  activeStage = id;
+  if (id === 'completed') loadCompleted().then(render);
+  render();
+}
+
+// ─── RECENTLY COMPLETED (read-only, from "Completed" sheet tab) ──
+let COMPLETED = [];
+let completedLoadedAt = 0;
+async function loadCompleted() {
+  if (Date.now() - completedLoadedAt < 60000) return;
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=getCompleted');
+    const data = await res.json();
+    COMPLETED = data.rows || [];
+    completedLoadedAt = Date.now();
+  } catch(e) { /* tab just shows what it has */ }
+}
+
+function completedCardHtml(r) {
+  const sid = stageId(r.Stage);
+  return `
+  <div class="card">
+    <div class="stage-bar s8-bar"></div>
+    <div class="card-top">
+      <div>
+        <div class="customer-name">${r.Customer || ''}</div>
+        <div class="job-id">#${r.WO} · ${r.Type || ''}</div>
+      </div>
+      <div class="stage-pill ${sid}">${stageObj(sid).short}</div>
+    </div>
+    <div class="completed-stamp">✅ Completed ${r.CompletedAt || ''}</div>
+    ${r.Note ? `<div class="notes-section" style="margin-top:8px"><div class="notes-body" style="min-height:0">${r.Note}</div></div>` : ''}
+  </div>`;
+}
 
 // ─── NOTES AUTO-SAVE ───────────────────────────────────────
 function onNotesInput(jobId, el) {
