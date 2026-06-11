@@ -257,7 +257,8 @@ const STAGES = [
 ];
 
 // Stages with a one-tap Dispatch status message (must match the Make scenario routes + ledger keys)
-const SENDABLE = { s3: 'autho_submitted', s5: 'send_quote', s7: 'order_parts' };
+// NOTE: the "parts on order" text is sent from the WAITING stage (s8), per Armando 2026-06-11
+const SENDABLE = { s3: 'autho_submitted', s5: 'send_quote', s8: 'order_parts' };
 
 const STAGE_MAP = {};
 STAGES.forEach(s => { STAGE_MAP[s.label] = s.id; });
@@ -334,6 +335,7 @@ setInterval(() => {
   if (Date.now() - lastEditAt < 10000) return;
   if (sendingAll) return;
   loadFromSheet();
+  loadSentFlags();
 }, REFRESH_MS);
 
 async function pushRow(job) {
@@ -412,11 +414,24 @@ function canSend(job) {
   return !!SENDABLE[job.stage] && /^\d+$/.test(job.id);
 }
 
+let SENT_FLAGS = {}; // "wo|stageKey" -> date, from the SentLog sheet tab
+
+async function loadSentFlags() {
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=getSentFlags');
+    const data = await res.json();
+    if (data.flags) SENT_FLAGS = data.flags;
+  } catch(e) {}
+}
+
 function sendBtnHtml(job) {
   if (!canSend(job)) return '';
   const st = SEND_STATE[job.id + '|' + job.stage];
   const s = stageObj(job.stage);
   if (st === 'sending')   return `<button class="send-btn" disabled>⏳ Sending…</button>`;
+  const flag = SENT_FLAGS[job.id + '|' + SENDABLE[job.stage]];
+  if (!st && flag)
+    return `<button class="send-btn dup" disabled>✓ Already sent · ${flag}</button>`;
   if (st === 'sent')      return `<button class="send-btn sent" disabled>✓ Update sent</button>`;
   if (st === 'duplicate') return `<button class="send-btn dup" disabled>✓ Already sent for this stage</button>`;
   if (st === 'not_found') return `<button class="send-btn failed" onclick="sendUpdate('${job.id}','${job.stage}')">⚠️ WO not found in Dispatch — retry</button>`;
@@ -434,6 +449,15 @@ async function sendUpdate(jobId, stage) {
     SEND_STATE[key] = (data.status === 'sent' || data.status === 'duplicate' || data.status === 'not_found') ? data.status : 'error';
   } catch(e) {
     SEND_STATE[key] = 'error';
+  }
+  // Persist the sent-flag to the SentLog sheet tab (keeps Notes clean)
+  if (SEND_STATE[key] === 'sent' || SEND_STATE[key] === 'duplicate') {
+    const fkey = jobId + '|' + SENDABLE[stage];
+    if (!SENT_FLAGS[fkey]) {
+      SENT_FLAGS[fkey] = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors',
+        body: JSON.stringify({ action: 'markSent', wo: jobId, stage: SENDABLE[stage] }) });
+    }
   }
   render();
   return SEND_STATE[key];
@@ -741,6 +765,7 @@ if (storedName) {
 }
 
 loadFromSheet();
+loadSentFlags().then(render);
 </script>
 </body>
 </html>
