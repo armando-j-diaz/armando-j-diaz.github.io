@@ -62,7 +62,7 @@
     .header-sub   { font-size: .8rem; opacity: .7; margin-top: 2px; }
 
     /* ── Main card ── */
-    .container { max-width: 860px; margin: 32px auto; padding: 0 16px 60px; }
+    .container { max-width: 900px; margin: 32px auto; padding: 0 16px 60px; }
 
     .card {
       background: #fff;
@@ -100,7 +100,7 @@
       white-space: nowrap;
     }
     .btn:active { transform: scale(.97); }
-    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
 
     .btn-primary  { background: #2563eb; color: #fff; }
     .btn-primary:hover:not(:disabled) { background: #1d4ed8; }
@@ -108,7 +108,8 @@
     .btn-send { background: #2d7d46; color: #fff; }
     .btn-send:hover:not(:disabled) { background: #256038; }
 
-    .btn-danger { background: #c53030; color: #fff; }
+    .btn-send-selected { background: #0369a1; color: #fff; }
+    .btn-send-selected:hover:not(:disabled) { background: #075985; }
 
     /* ── Status bar ── */
     .status-bar {
@@ -146,12 +147,37 @@
       font-size: .75rem; font-weight: 700; text-transform: uppercase;
       letter-spacing: .05em; border-bottom: 2px solid #e2e8f0;
     }
+    th.col-check { width: 40px; text-align: center; padding: 10px 8px; }
     td {
       padding: 12px 14px; border-bottom: 1px solid #edf2f7;
       vertical-align: middle;
     }
+    td.col-check { text-align: center; padding: 12px 8px; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: #f7fafc; }
+    tr.row-selected td { background: #eff6ff; }
+    tr.row-selected:hover td { background: #dbeafe; }
+
+    /* ── Checkbox styling ── */
+    input[type="checkbox"].row-check,
+    input[type="checkbox"]#selectAll {
+      width: 17px; height: 17px; cursor: pointer;
+      accent-color: #2563eb;
+    }
+
+    /* ── Selection bar ── */
+    #selection-bar {
+      display: none;
+      background: #eff6ff; border: 1px solid #bfdbfe;
+      border-radius: 8px; padding: 10px 16px;
+      font-size: .85rem; color: #1e40af; font-weight: 500;
+      margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
+    }
+    #selection-bar.hidden { display: none !important; }
+    .sel-clear {
+      margin-left: auto; font-size: .8rem; color: #3b82f6;
+      cursor: pointer; text-decoration: underline; white-space: nowrap;
+    }
 
     .customer-name { font-weight: 600; color: #1a202c; }
     .job-num  { color: #4a5568; font-size: .85rem; font-family: monospace; }
@@ -172,6 +198,7 @@
     }
     .send-panel-title { font-weight: 700; color: #276749; margin-bottom: 8px; font-size: .95rem; }
     .send-panel-body  { color: #4a5568; font-size: .88rem; line-height: 1.5; margin-bottom: 14px; }
+    .send-btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 
     /* ── Send progress ── */
     #send-progress { display: none; }
@@ -260,10 +287,19 @@
       <div class="results-date-badge" id="resultsBadge"></div>
     </div>
 
+    <!-- Selection bar -->
+    <div id="selection-bar" class="hidden">
+      <span id="selectionLabel">0 selected</span>
+      <span class="sel-clear" onclick="clearSelection()">Clear selection</span>
+    </div>
+
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
+            <th class="col-check">
+              <input type="checkbox" id="selectAll" title="Select all" onchange="toggleSelectAll(this)" />
+            </th>
             <th>#</th>
             <th>Customer</th>
             <th>AHS Job</th>
@@ -278,9 +314,14 @@
     <div id="send-panel">
       <div class="send-panel-title">✅ Schedule looks good? Send notifications.</div>
       <div class="send-panel-body" id="sendPanelBody"></div>
-      <button class="btn btn-send" id="sendBtn" onclick="runSend()">
-        📲 Send Notifications to All Customers
-      </button>
+      <div class="send-btns">
+        <button class="btn btn-send" id="sendAllBtn" onclick="runSend('all')">
+          📲 Send to All Customers
+        </button>
+        <button class="btn btn-send-selected" id="sendSelectedBtn" onclick="runSend('selected')" disabled>
+          📋 Send to Selected (<span id="selectedCount">0</span>)
+        </button>
+      </div>
     </div>
 
     <!-- Send progress (shown during send) -->
@@ -316,7 +357,6 @@
       document.getElementById('pwInput').focus();
     }
   }
-  // Auto-unlock if already authenticated this session
   if (sessionStorage.getItem(PW_KEY)) {
     document.getElementById('login-overlay').style.display = 'none';
     document.getElementById('app').style.display = 'block';
@@ -327,59 +367,41 @@
   // ── Default date to today ──
   (function() {
     const d = new Date();
-    const iso = d.toLocaleDateString('en-CA'); // YYYY-MM-DD in local tz
+    const iso = d.toLocaleDateString('en-CA');
     document.getElementById('datePicker').value = iso;
   })();
 
   // ── ET range from date string ──
   function getETRange(dateStr) {
-    // Find ET UTC offset for this date (handles DST automatically)
-    const probe = new Date(dateStr + 'T12:00:00Z'); // UTC noon on target date
+    const probe = new Date(dateStr + 'T12:00:00Z');
     const etHour = parseInt(probe.toLocaleString('en-US', {
       timeZone: 'America/New_York', hour: 'numeric', hour12: false
     }));
-    const offset = 12 - etHour; // 4 = EDT, 5 = EST
-
+    const offset = 12 - etHour;
     const [y, m, dd] = dateStr.split('-').map(Number);
     const start = new Date(Date.UTC(y, m - 1, dd, offset, 0, 0));
     const end   = new Date(Date.UTC(y, m - 1, dd + 1, offset, 0, 0) - 1000);
-
-    return {
-      date_start: start.toISOString(),
-      date_end:   end.toISOString()
-    };
+    return { date_start: start.toISOString(), date_end: end.toISOString() };
   }
 
-  // ── Format UTC ISO → "8:00 AM" ET ──
   function fmtET(utcStr) {
-    const d = new Date(utcStr);
-    return d.toLocaleTimeString('en-US', {
-      timeZone: 'America/New_York',
-      hour: 'numeric', minute: '2-digit', hour12: true
+    return new Date(utcStr).toLocaleTimeString('en-US', {
+      timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true
     });
   }
 
-  // ── Format YYYY-MM-DD → "Monday, June 15" ──
   function fmtDate(dateStr) {
-    const d = new Date(dateStr + 'T12:00:00Z');
-    return d.toLocaleDateString('en-US', {
-      timeZone: 'America/New_York',
-      weekday: 'long', month: 'long', day: 'numeric'
+    return new Date(dateStr + 'T12:00:00Z').toLocaleDateString('en-US', {
+      timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric'
     });
   }
 
-  // ── Extract AHS job number from title like "53668939 A/C Normal:RECALL" ──
   function parseJobTitle(title) {
     if (!title) return { num: '—', type: '' };
     const parts = title.split(' ');
-    const num = parts[0] || '—';
-    const rest = parts.slice(1).join(' ');
-    return { num, type: rest };
+    return { num: parts[0] || '—', type: parts.slice(1).join(' ') };
   }
 
-  // ── Is this the placeholder 8am–5pm window? ──
-  // Check UTC hours directly: 8am ET = 12:00 UTC (EDT) or 13:00 UTC (EST)
-  //                           5pm ET = 21:00 UTC (EDT) or 22:00 UTC (EST)
   function isPlaceholder(startUTC, endUTC) {
     const s = new Date(startUTC);
     const e = new Date(endUTC);
@@ -388,7 +410,6 @@
     return startIs8am && endIs5pm;
   }
 
-  // ── Status helper ──
   function showStatus(elId, type, msg) {
     const el = document.getElementById(elId);
     el.className = 'status-bar ' + type;
@@ -399,9 +420,74 @@
     document.getElementById(elId).style.display = 'none';
   }
 
+  function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
   // ── Stored preview data ──
   let lastPreviewData = null;
   let lastDateStr = null;
+
+  // ════════════════════════════
+  //   SELECTION
+  // ════════════════════════════
+  function getSelectedJobIds() {
+    return Array.from(document.querySelectorAll('.row-check:checked'))
+                .map(cb => cb.dataset.jobId);
+  }
+
+  function updateSelectionUI() {
+    const checked = document.querySelectorAll('.row-check:checked');
+    const total   = document.querySelectorAll('.row-check');
+    const count   = checked.length;
+
+    // Update "Send Selected" button
+    document.getElementById('selectedCount').textContent = count;
+    document.getElementById('sendSelectedBtn').disabled = (count === 0);
+
+    // Update "Select All" indeterminate state
+    const selectAll = document.getElementById('selectAll');
+    if (count === 0) {
+      selectAll.checked = false;
+      selectAll.indeterminate = false;
+    } else if (count === total.length) {
+      selectAll.checked = true;
+      selectAll.indeterminate = false;
+    } else {
+      selectAll.checked = false;
+      selectAll.indeterminate = true;
+    }
+
+    // Selection bar
+    const bar = document.getElementById('selection-bar');
+    if (count > 0) {
+      bar.classList.remove('hidden');
+      document.getElementById('selectionLabel').textContent =
+        `${count} customer${count !== 1 ? 's' : ''} selected`;
+    } else {
+      bar.classList.add('hidden');
+    }
+
+    // Row highlight
+    document.querySelectorAll('.row-check').forEach(cb => {
+      cb.closest('tr').classList.toggle('row-selected', cb.checked);
+    });
+  }
+
+  function toggleSelectAll(selectAllCb) {
+    document.querySelectorAll('.row-check').forEach(cb => {
+      cb.checked = selectAllCb.checked;
+    });
+    updateSelectionUI();
+  }
+
+  function clearSelection() {
+    document.querySelectorAll('.row-check').forEach(cb => cb.checked = false);
+    document.getElementById('selectAll').checked = false;
+    document.getElementById('selectAll').indeterminate = false;
+    updateSelectionUI();
+  }
 
   // ════════════════════════════
   //   PREVIEW
@@ -431,7 +517,6 @@
 
       lastPreviewData = data.customers || [];
       lastDateStr = dateStr;
-
       renderTable(lastPreviewData, dateStr);
 
     } catch (err) {
@@ -453,9 +538,14 @@
 
     badge.textContent = fmtDate(dateStr);
 
+    // Reset selection UI
+    document.getElementById('selectAll').checked = false;
+    document.getElementById('selectAll').indeterminate = false;
+    document.getElementById('selection-bar').classList.add('hidden');
+
     if (!customers.length) {
       count.textContent = 'No scheduled appointments found.';
-      tbody.innerHTML = `<tr><td colspan="4">
+      tbody.innerHTML = `<tr><td colspan="5">
         <div class="empty-state">
           <div class="empty-state-icon">📭</div>
           <div class="empty-state-msg">No scheduled appointments for this date.</div>
@@ -480,7 +570,13 @@
         ? `<span class="time-placeholder">⚠️ ${startET} – ${endET} (placeholder)</span>`
         : `<span class="time-window">${startET} – ${endET}</span>`;
 
+      const jobId = esc(c.jobId || '');
+
       return `<tr>
+        <td class="col-check">
+          <input type="checkbox" class="row-check" data-job-id="${jobId}"
+            onchange="updateSelectionUI()" />
+        </td>
         <td style="color:#a0aec0;font-size:.8rem;">${i + 1}</td>
         <td><div class="customer-name">${esc(c.customerName)}</div></td>
         <td><span class="job-num">${esc(num)}</span>
@@ -503,52 +599,75 @@
     } else {
       body.innerHTML = `All <strong>${customers.length} customers</strong> have finalized time windows.
         Each will receive a Dispatch in-app message with their scheduled time and a callback
-        number (305-449-9924).`;
+        number (305-449-9924). Use <strong>Send to Selected</strong> to notify only specific customers.`;
     }
 
-    panel.style.display = 'block';
-    document.getElementById('sendBtn').disabled = false;
-    document.getElementById('sendBtn').innerHTML = '📲 Send Notifications to All Customers';
+    // Reset buttons
+    const sendAllBtn = document.getElementById('sendAllBtn');
+    sendAllBtn.disabled = false;
+    sendAllBtn.innerHTML = '📲 Send to All Customers';
+    sendAllBtn.style.background = '';
+
+    document.getElementById('selectedCount').textContent = '0';
+    document.getElementById('sendSelectedBtn').disabled = true;
+
     document.getElementById('send-progress').style.display = 'none';
+    panel.style.display = 'block';
     section.style.display = 'block';
   }
 
   // ════════════════════════════
   //   SEND
   // ════════════════════════════
-  async function runSend() {
+  async function runSend(mode) {
     if (!lastPreviewData || !lastPreviewData.length) return;
 
+    const selectedIds = mode === 'selected' ? getSelectedJobIds() : null;
+    const count = mode === 'selected' ? selectedIds.length : lastPreviewData.length;
+
+    if (mode === 'selected' && count === 0) return;
+
+    const modeLabel = mode === 'selected'
+      ? `${count} selected customer${count !== 1 ? 's' : ''}`
+      : `all ${count} customers`;
+
     const confirmed = confirm(
-      `Send appointment notifications to all ${lastPreviewData.length} customers scheduled on ${fmtDate(lastDateStr)}?\n\nThis will send a real Dispatch in-app message to each customer.`
+      `Send appointment notifications to ${modeLabel} scheduled on ${fmtDate(lastDateStr)}?\n\nThis will send a real Dispatch in-app message to each customer.`
     );
     if (!confirmed) return;
 
-    const sendBtn = document.getElementById('sendBtn');
-    sendBtn.disabled = true;
-    sendBtn.innerHTML = '<span class="spinner"></span> Sending…';
+    // Disable both send buttons
+    const sendAllBtn      = document.getElementById('sendAllBtn');
+    const sendSelectedBtn = document.getElementById('sendSelectedBtn');
+    sendAllBtn.disabled      = true;
+    sendSelectedBtn.disabled = true;
+    sendAllBtn.innerHTML     = '<span class="spinner"></span> Sending…';
+
     document.getElementById('send-progress').style.display = 'block';
     document.getElementById('sendStatusBar').style.display = 'none';
 
-    // Animate progress bar while waiting (indeterminate)
     animateProgress(0, 80, 4000);
 
     const { date_start, date_end } = getETRange(lastDateStr);
-    const url = `${WEBHOOK}?date=${lastDateStr}&date_start=${encodeURIComponent(date_start)}&date_end=${encodeURIComponent(date_end)}&action=send`;
+    const payload = { date: lastDateStr, date_start, date_end, action: 'send' };
+    if (selectedIds) payload.selected_ids = selectedIds;
 
     try {
-      const res = await fetch(url);
+      const res = await fetch(WEBHOOK, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
 
       animateProgress(80, 100, 400);
       setTimeout(() => {
         document.getElementById('send-progress').style.display = 'none';
         showStatus('sendStatusBar', 'success',
-          `✅ Notifications sent to ${lastPreviewData.length} customer${lastPreviewData.length !== 1 ? 's' : ''} for ${fmtDate(lastDateStr)}.`
+          `✅ Notifications sent to ${modeLabel} for ${fmtDate(lastDateStr)}.`
         );
-        sendBtn.innerHTML = '✅ Sent';
-        sendBtn.style.background = '#276749';
+        sendAllBtn.innerHTML = '✅ Sent';
+        sendAllBtn.style.background = '#276749';
       }, 450);
 
     } catch (err) {
@@ -556,8 +675,9 @@
       showStatus('sendStatusBar', 'error',
         `❌ Send failed: ${err.message}. Check Make.com logs.`
       );
-      sendBtn.disabled = false;
-      sendBtn.innerHTML = '📲 Retry Send';
+      sendAllBtn.disabled = false;
+      sendSelectedBtn.disabled = (getSelectedJobIds().length === 0);
+      sendAllBtn.innerHTML = '📲 Retry Send All';
     }
   }
 
@@ -578,12 +698,6 @@
       label.textContent = `${Math.round(cur)}% complete`;
       if (cur >= to) clearInterval(progressAnim);
     }, delay);
-  }
-
-  // ── HTML escape ──
-  function esc(s) {
-    if (!s) return '';
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 </script>
 </body>
