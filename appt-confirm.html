@@ -14,9 +14,36 @@
       min-height: 100vh;
     }
 
+    /* ── Login overlay ── */
+    #login-overlay {
+      position: fixed; inset: 0; background: #0f172a;
+      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .login-card {
+      background: white; border-radius: 14px; padding: 44px 52px;
+      text-align: center; width: 360px; box-shadow: 0 24px 48px rgba(0,0,0,.4);
+    }
+    .login-logo { font-size: 36px; margin-bottom: 10px; }
+    .login-card h1 { font-size: 20px; font-weight: 700; margin-bottom: 6px; color: #1e293b; }
+    .login-card p  { font-size: 14px; color: #64748b; margin-bottom: 24px; }
+    .login-card input[type="password"] {
+      width: 100%; padding: 12px 16px; border: 1.5px solid #e2e8f0;
+      border-radius: 8px; font-size: 15px; margin-bottom: 12px; outline: none;
+      transition: border-color .2s;
+    }
+    .login-card input[type="password"]:focus { border-color: #2563eb; }
+    .login-card button {
+      width: 100%; padding: 12px; background: #2563eb; color: white;
+      border: none; border-radius: 8px; font-size: 15px; font-weight: 600;
+      cursor: pointer; transition: background .2s;
+    }
+    .login-card button:hover { background: #1d4ed8; }
+    .login-error { color: #ef4444; font-size: 13px; margin-top: 10px; min-height: 18px; }
+    #app { display: none; }
+
     /* ── Header ── */
     .header {
-      background: #1a3c6e;
+      background: #1e293b;
       color: #fff;
       padding: 18px 24px;
       display: flex;
@@ -46,7 +73,7 @@
     }
 
     .card-title {
-      font-size: 1rem; font-weight: 700; color: #1a3c6e;
+      font-size: 1rem; font-weight: 700; color: #1e293b;
       margin-bottom: 18px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;
     }
 
@@ -75,8 +102,8 @@
     .btn:active { transform: scale(.97); }
     .btn:disabled { opacity: .5; cursor: not-allowed; }
 
-    .btn-primary  { background: #1a3c6e; color: #fff; }
-    .btn-primary:hover:not(:disabled) { background: #153162; }
+    .btn-primary  { background: #2563eb; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #1d4ed8; }
 
     .btn-send { background: #2d7d46; color: #fff; }
     .btn-send:hover:not(:disabled) { background: #256038; }
@@ -104,7 +131,7 @@
       font-size: .85rem; color: #4a5568; font-weight: 500;
     }
     .results-date-badge {
-      background: #ebf4ff; color: #1a3c6e;
+      background: #eff6ff; color: #1e293b;
       border-radius: 20px; padding: 4px 12px;
       font-size: .8rem; font-weight: 700;
     }
@@ -129,7 +156,7 @@
     .customer-name { font-weight: 600; color: #1a202c; }
     .job-num  { color: #4a5568; font-size: .85rem; font-family: monospace; }
     .time-window {
-      display: inline-block; background: #ebf4ff; color: #1a3c6e;
+      display: inline-block; background: #eff6ff; color: #1e293b;
       border-radius: 6px; padding: 3px 10px; font-size: .85rem; font-weight: 600;
     }
     .time-placeholder {
@@ -178,6 +205,21 @@
   </style>
 </head>
 <body>
+
+<!-- ═══ LOGIN ═══ -->
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-logo">❄️</div>
+    <h1>JET AC Apps</h1>
+    <p>Enter password to continue</p>
+    <input type="password" id="pwInput" placeholder="Password" onkeydown="if(event.key==='Enter')checkPw()" autofocus />
+    <button onclick="checkPw()">Sign In</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div id="app">
 
 <!-- ═══ HEADER ═══ -->
 <div class="header">
@@ -257,8 +299,29 @@
   </div>
 
 </div><!-- /container -->
+</div><!-- /app -->
 
 <script>
+  // ── Login ──
+  const PW_KEY = 'jetac_appt_auth';
+  function checkPw() {
+    const val = document.getElementById('pwInput').value;
+    if (val === 'JetADMIN') {
+      sessionStorage.setItem(PW_KEY, '1');
+      document.getElementById('login-overlay').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+    } else {
+      document.getElementById('loginError').textContent = 'Incorrect password.';
+      document.getElementById('pwInput').value = '';
+      document.getElementById('pwInput').focus();
+    }
+  }
+  // Auto-unlock if already authenticated this session
+  if (sessionStorage.getItem(PW_KEY)) {
+    document.getElementById('login-overlay').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+  }
+
   const WEBHOOK = "https://hook.us2.make.com/beu9saa93ix49lf9s60jasv8ouqy87xi";
 
   // ── Default date to today ──
