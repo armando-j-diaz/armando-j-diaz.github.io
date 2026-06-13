@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JET AC · Appointment Notifier</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: #1a3c6e;
+      color: #fff;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+    .header-logo {
+      width: 44px; height: 44px;
+      background: #e8f0fc;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+    }
+    .header-title { font-size: 1.2rem; font-weight: 700; letter-spacing: .01em; }
+    .header-sub   { font-size: .8rem; opacity: .7; margin-top: 2px; }
+
+    /* ── Main card ── */
+    .container { max-width: 860px; margin: 32px auto; padding: 0 16px 60px; }
+
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      padding: 28px 32px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 1rem; font-weight: 700; color: #1a3c6e;
+      margin-bottom: 18px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;
+    }
+
+    /* ── Date picker row ── */
+    .picker-row {
+      display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;
+    }
+    .picker-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px; }
+    .picker-group label { font-size: .8rem; font-weight: 600; color: #4a5568; }
+    .picker-group input[type="date"] {
+      padding: 10px 14px; border: 2px solid #cbd5e0; border-radius: 8px;
+      font-size: 1rem; color: #1a202c; background: #f7fafc;
+      outline: none; transition: border .15s;
+      width: 100%;
+    }
+    .picker-group input[type="date"]:focus { border-color: #1a3c6e; background: #fff; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 22px; border: none; border-radius: 8px;
+      font-size: .95rem; font-weight: 600; cursor: pointer;
+      transition: background .15s, opacity .15s, transform .1s;
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    .btn-primary  { background: #1a3c6e; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #153162; }
+
+    .btn-send { background: #2d7d46; color: #fff; }
+    .btn-send:hover:not(:disabled) { background: #256038; }
+
+    .btn-danger { background: #c53030; color: #fff; }
+
+    /* ── Status bar ── */
+    .status-bar {
+      padding: 12px 16px; border-radius: 8px; font-size: .9rem;
+      display: none; margin-top: 14px; line-height: 1.4;
+    }
+    .status-bar.info    { background: #ebf4ff; color: #2b6cb0; border: 1px solid #bee3f8; }
+    .status-bar.success { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
+    .status-bar.error   { background: #fff5f5; color: #c53030; border: 1px solid #fed7d7; }
+    .status-bar.warn    { background: #fffff0; color: #744210; border: 1px solid #faf089; }
+
+    /* ── Customer table ── */
+    #results-section { display: none; }
+
+    .results-header {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 10px; margin-bottom: 14px;
+    }
+    .results-count {
+      font-size: .85rem; color: #4a5568; font-weight: 500;
+    }
+    .results-date-badge {
+      background: #ebf4ff; color: #1a3c6e;
+      border-radius: 20px; padding: 4px 12px;
+      font-size: .8rem; font-weight: 700;
+    }
+
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%; border-collapse: collapse; font-size: .9rem;
+    }
+    th {
+      text-align: left; padding: 10px 14px;
+      background: #f7fafc; color: #4a5568;
+      font-size: .75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .05em; border-bottom: 2px solid #e2e8f0;
+    }
+    td {
+      padding: 12px 14px; border-bottom: 1px solid #edf2f7;
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f7fafc; }
+
+    .customer-name { font-weight: 600; color: #1a202c; }
+    .job-num  { color: #4a5568; font-size: .85rem; font-family: monospace; }
+    .time-window {
+      display: inline-block; background: #ebf4ff; color: #1a3c6e;
+      border-radius: 6px; padding: 3px 10px; font-size: .85rem; font-weight: 600;
+    }
+    .time-placeholder {
+      display: inline-block; background: #fef3c7; color: #92400e;
+      border-radius: 6px; padding: 3px 10px; font-size: .82rem; font-weight: 600;
+    }
+
+    /* ── Send panel ── */
+    #send-panel {
+      display: none; margin-top: 20px;
+      border: 2px solid #9ae6b4; border-radius: 10px;
+      padding: 18px 22px; background: #f0fff4;
+    }
+    .send-panel-title { font-weight: 700; color: #276749; margin-bottom: 8px; font-size: .95rem; }
+    .send-panel-body  { color: #4a5568; font-size: .88rem; line-height: 1.5; margin-bottom: 14px; }
+
+    /* ── Send progress ── */
+    #send-progress { display: none; }
+    .progress-bar-wrap {
+      height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin: 8px 0;
+    }
+    .progress-bar-fill {
+      height: 100%; background: #2d7d46; border-radius: 4px;
+      transition: width .3s ease; width: 0%;
+    }
+
+    /* ── Spinner ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 18px; height: 18px; border: 3px solid rgba(255,255,255,.4);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin .7s linear infinite; display: inline-block;
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center; padding: 48px 24px; color: #a0aec0;
+    }
+    .empty-state-icon { font-size: 40px; margin-bottom: 10px; }
+    .empty-state-msg  { font-size: .95rem; }
+
+    @media (max-width: 540px) {
+      .card { padding: 20px 16px; }
+      .picker-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<div class="header">
+  <div class="header-logo">❄️</div>
+  <div>
+    <div class="header-title">JET AC · Appointment Notifier</div>
+    <div class="header-sub">Preview & notify customers of their scheduled time</div>
+  </div>
+</div>
+
+<!-- ═══ MAIN ═══ -->
+<div class="container">
+
+  <!-- Date picker card -->
+  <div class="card">
+    <div class="card-title">📅 Select Day to Notify</div>
+    <div class="picker-row">
+      <div class="picker-group">
+        <label for="datePicker">Appointment Date</label>
+        <input type="date" id="datePicker" />
+      </div>
+      <button class="btn btn-primary" id="previewBtn" onclick="runPreview()">
+        🔍 Preview Schedule
+      </button>
+    </div>
+    <div class="status-bar" id="statusBar"></div>
+  </div>
+
+  <!-- Results card -->
+  <div class="card" id="results-section">
+    <div class="results-header">
+      <div>
+        <div class="card-title" style="margin-bottom:4px; border:none; padding:0;">
+          Scheduled Customers
+        </div>
+        <div class="results-count" id="resultsCount"></div>
+      </div>
+      <div class="results-date-badge" id="resultsBadge"></div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Customer</th>
+            <th>AHS Job</th>
+            <th>Time Window (ET)</th>
+          </tr>
+        </thead>
+        <tbody id="customerTable"></tbody>
+      </table>
+    </div>
+
+    <!-- Send panel -->
+    <div id="send-panel">
+      <div class="send-panel-title">✅ Schedule looks good? Send notifications.</div>
+      <div class="send-panel-body" id="sendPanelBody"></div>
+      <button class="btn btn-send" id="sendBtn" onclick="runSend()">
+        📲 Send Notifications to All Customers
+      </button>
+    </div>
+
+    <!-- Send progress (shown during send) -->
+    <div id="send-progress">
+      <div style="font-size:.9rem; color:#276749; font-weight:600; margin-top:16px;">
+        Sending messages…
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="progressFill"></div>
+      </div>
+      <div id="progressLabel" style="font-size:.82rem; color:#4a5568;"></div>
+    </div>
+
+    <!-- Send result -->
+    <div class="status-bar" id="sendStatusBar" style="margin-top:14px;"></div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+  const WEBHOOK = "https://hook.us2.make.com/beu9saa93ix49lf9s60jasv8ouqy87xi";
+
+  // ── Default date to today ──
+  (function() {
+    const d = new Date();
+    const iso = d.toLocaleDateString('en-CA'); // YYYY-MM-DD in local tz
+    document.getElementById('datePicker').value = iso;
+  })();
+
+  // ── ET range from date string ──
+  function getETRange(dateStr) {
+    // Find ET UTC offset for this date (handles DST automatically)
+    const probe = new Date(dateStr + 'T12:00:00Z'); // UTC noon on target date
+    const etHour = parseInt(probe.toLocaleString('en-US', {
+      timeZone: 'America/New_York', hour: 'numeric', hour12: false
+    }));
+    const offset = 12 - etHour; // 4 = EDT, 5 = EST
+
+    const [y, m, dd] = dateStr.split('-').map(Number);
+    const start = new Date(Date.UTC(y, m - 1, dd, offset, 0, 0));
+    const end   = new Date(Date.UTC(y, m - 1, dd + 1, offset, 0, 0) - 1000);
+
+    return {
+      date_start: start.toISOString(),
+      date_end:   end.toISOString()
+    };
+  }
+
+  // ── Format UTC ISO → "8:00 AM" ET ──
+  function fmtET(utcStr) {
+    const d = new Date(utcStr);
+    return d.toLocaleTimeString('en-US', {
+      timeZone: 'America/New_York',
+      hour: 'numeric', minute: '2-digit', hour12: true
+    });
+  }
+
+  // ── Format YYYY-MM-DD → "Monday, June 15" ──
+  function fmtDate(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00Z');
+    return d.toLocaleDateString('en-US', {
+      timeZone: 'America/New_York',
+      weekday: 'long', month: 'long', day: 'numeric'
+    });
+  }
+
+  // ── Extract AHS job number from title like "53668939 A/C Normal:RECALL" ──
+  function parseJobTitle(title) {
+    if (!title) return { num: '—', type: '' };
+    const parts = title.split(' ');
+    const num = parts[0] || '—';
+    const rest = parts.slice(1).join(' ');
+    return { num, type: rest };
+  }
+
+  // ── Is this the placeholder 8am–5pm window? ──
+  function isPlaceholder(startUTC, endUTC) {
+    const sh = new Date(startUTC).toLocaleString('en-US', {
+      timeZone: 'America/New_York', hour: 'numeric', hour12: false
+    });
+    const eh = new Date(endUTC).toLocaleString('en-US', {
+      timeZone: 'America/New_York', hour: 'numeric', hour12: false
+    });
+    return sh === '8' && eh === '17';  // 8am–5pm
+  }
+
+  // ── Status helper ──
+  function showStatus(elId, type, msg) {
+    const el = document.getElementById(elId);
+    el.className = 'status-bar ' + type;
+    el.innerHTML = msg;
+    el.style.display = 'block';
+  }
+  function hideStatus(elId) {
+    document.getElementById(elId).style.display = 'none';
+  }
+
+  // ── Stored preview data ──
+  let lastPreviewData = null;
+  let lastDateStr = null;
+
+  // ════════════════════════════
+  //   PREVIEW
+  // ════════════════════════════
+  async function runPreview() {
+    const dateStr = document.getElementById('datePicker').value;
+    if (!dateStr) {
+      showStatus('statusBar', 'error', '⚠️ Please pick a date first.');
+      return;
+    }
+
+    const btn = document.getElementById('previewBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Loading…';
+    hideStatus('statusBar');
+    document.getElementById('results-section').style.display = 'none';
+    document.getElementById('send-panel').style.display = 'none';
+    document.getElementById('sendStatusBar').style.display = 'none';
+
+    const { date_start, date_end } = getETRange(dateStr);
+    const url = `${WEBHOOK}?date=${dateStr}&date_start=${encodeURIComponent(date_start)}&date_end=${encodeURIComponent(date_end)}&action=preview`;
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      lastPreviewData = data.customers || [];
+      lastDateStr = dateStr;
+
+      renderTable(lastPreviewData, dateStr);
+
+    } catch (err) {
+      showStatus('statusBar', 'error', `❌ Failed to reach Make.com: ${err.message}`);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '🔍 Preview Schedule';
+    }
+  }
+
+  // ════════════════════════════
+  //   RENDER TABLE
+  // ════════════════════════════
+  function renderTable(customers, dateStr) {
+    const section = document.getElementById('results-section');
+    const tbody   = document.getElementById('customerTable');
+    const count   = document.getElementById('resultsCount');
+    const badge   = document.getElementById('resultsBadge');
+
+    badge.textContent = fmtDate(dateStr);
+
+    if (!customers.length) {
+      count.textContent = 'No scheduled appointments found.';
+      tbody.innerHTML = `<tr><td colspan="4">
+        <div class="empty-state">
+          <div class="empty-state-icon">📭</div>
+          <div class="empty-state-msg">No scheduled appointments for this date.</div>
+        </div>
+      </td></tr>`;
+      document.getElementById('send-panel').style.display = 'none';
+      section.style.display = 'block';
+      return;
+    }
+
+    count.textContent = `${customers.length} customer${customers.length !== 1 ? 's' : ''} scheduled`;
+
+    let anyPlaceholder = false;
+    tbody.innerHTML = customers.map((c, i) => {
+      const { num, type } = parseJobTitle(c.jobTitle);
+      const startET = fmtET(c.startTime);
+      const endET   = fmtET(c.endTime);
+      const ph = isPlaceholder(c.startTime, c.endTime);
+      if (ph) anyPlaceholder = true;
+
+      const timeBadge = ph
+        ? `<span class="time-placeholder">⚠️ ${startET} – ${endET} (placeholder)</span>`
+        : `<span class="time-window">${startET} – ${endET}</span>`;
+
+      return `<tr>
+        <td style="color:#a0aec0;font-size:.8rem;">${i + 1}</td>
+        <td><div class="customer-name">${esc(c.customerName)}</div></td>
+        <td><span class="job-num">${esc(num)}</span>
+            ${type ? `<br><span style="font-size:.75rem;color:#718096">${esc(type)}</span>` : ''}
+        </td>
+        <td>${timeBadge}</td>
+      </tr>`;
+    }).join('');
+
+    // Send panel
+    const panel = document.getElementById('send-panel');
+    const body  = document.getElementById('sendPanelBody');
+
+    if (anyPlaceholder) {
+      body.innerHTML = `⚠️ <strong>Some customers still show the placeholder window (8:00 AM – 5:00 PM)</strong>.
+        Make sure you've rescheduled all jobs in Dispatch before sending — customers will receive
+        the times shown above.<br><br>
+        Each customer will receive a Dispatch in-app message with their time window and a callback
+        number (305-449-9924).`;
+    } else {
+      body.innerHTML = `All <strong>${customers.length} customers</strong> have finalized time windows.
+        Each will receive a Dispatch in-app message with their scheduled time and a callback
+        number (305-449-9924).`;
+    }
+
+    panel.style.display = 'block';
+    document.getElementById('sendBtn').disabled = false;
+    document.getElementById('sendBtn').innerHTML = '📲 Send Notifications to All Customers';
+    document.getElementById('send-progress').style.display = 'none';
+    section.style.display = 'block';
+  }
+
+  // ════════════════════════════
+  //   SEND
+  // ════════════════════════════
+  async function runSend() {
+    if (!lastPreviewData || !lastPreviewData.length) return;
+
+    const confirmed = confirm(
+      `Send appointment notifications to all ${lastPreviewData.length} customers scheduled on ${fmtDate(lastDateStr)}?\n\nThis will send a real Dispatch in-app message to each customer.`
+    );
+    if (!confirmed) return;
+
+    const sendBtn = document.getElementById('sendBtn');
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<span class="spinner"></span> Sending…';
+    document.getElementById('send-progress').style.display = 'block';
+    document.getElementById('sendStatusBar').style.display = 'none';
+
+    // Animate progress bar while waiting (indeterminate)
+    animateProgress(0, 80, 4000);
+
+    const { date_start, date_end } = getETRange(lastDateStr);
+    const url = `${WEBHOOK}?date=${lastDateStr}&date_start=${encodeURIComponent(date_start)}&date_end=${encodeURIComponent(date_end)}&action=send`;
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      animateProgress(80, 100, 400);
+      setTimeout(() => {
+        document.getElementById('send-progress').style.display = 'none';
+        showStatus('sendStatusBar', 'success',
+          `✅ Notifications sent to ${lastPreviewData.length} customer${lastPreviewData.length !== 1 ? 's' : ''} for ${fmtDate(lastDateStr)}.`
+        );
+        sendBtn.innerHTML = '✅ Sent';
+        sendBtn.style.background = '#276749';
+      }, 450);
+
+    } catch (err) {
+      document.getElementById('send-progress').style.display = 'none';
+      showStatus('sendStatusBar', 'error',
+        `❌ Send failed: ${err.message}. Check Make.com logs.`
+      );
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = '📲 Retry Send';
+    }
+  }
+
+  // ── Progress animation ──
+  let progressAnim = null;
+  function animateProgress(from, to, durationMs) {
+    clearInterval(progressAnim);
+    const fill  = document.getElementById('progressFill');
+    const label = document.getElementById('progressLabel');
+    const steps = 40;
+    const step  = (to - from) / steps;
+    const delay = durationMs / steps;
+    let cur = from;
+    fill.style.width = cur + '%';
+    progressAnim = setInterval(() => {
+      cur = Math.min(cur + step, to);
+      fill.style.width = cur + '%';
+      label.textContent = `${Math.round(cur)}% complete`;
+      if (cur >= to) clearInterval(progressAnim);
+    }, delay);
+  }
+
+  // ── HTML escape ──
+  function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+</script>
+</body>
+</html>
