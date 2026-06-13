@@ -315,14 +315,14 @@
   }
 
   // ── Is this the placeholder 8am–5pm window? ──
+  // Check UTC hours directly: 8am ET = 12:00 UTC (EDT) or 13:00 UTC (EST)
+  //                           5pm ET = 21:00 UTC (EDT) or 22:00 UTC (EST)
   function isPlaceholder(startUTC, endUTC) {
-    const sh = new Date(startUTC).toLocaleString('en-US', {
-      timeZone: 'America/New_York', hour: 'numeric', hour12: false
-    });
-    const eh = new Date(endUTC).toLocaleString('en-US', {
-      timeZone: 'America/New_York', hour: 'numeric', hour12: false
-    });
-    return sh === '8' && eh === '17';  // 8am–5pm
+    const s = new Date(startUTC);
+    const e = new Date(endUTC);
+    const startIs8am = (s.getUTCHours() === 12 || s.getUTCHours() === 13) && s.getUTCMinutes() === 0;
+    const endIs5pm   = (e.getUTCHours() === 21 || e.getUTCHours() === 22) && e.getUTCMinutes() === 0;
+    return startIs8am && endIs5pm;
   }
 
   // ── Status helper ──
