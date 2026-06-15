@@ -85,6 +85,10 @@
   .s7-bar { background: #0ea5e9; }
   .s8  { color: #94a3b8; background: #1a1f2e; border-color: #334155; }
   .s8-bar { background: #475569; }
+  .s9  { color: #f9a8d4; background: #2a0e1c; border-color: #be185d; }
+  .s9-bar { background: #db2777; }
+  .s10  { color: #fca5a5; background: #2a0d0d; border-color: #b91c1c; }
+  .s10-bar { background: #dc2626; }
   .filter-all { color: #e2e8f0; background: #1e293b; border-color: #334155; }
   .filter-all.active { background: #334155; opacity: 1; }
   .filter-completed { color: #4ade80; background: #0a1a0a; border-color: #15803d; margin-left: auto; }
@@ -252,8 +256,10 @@ const STAGES = [
   { id: 's4', label: 'N. Prepare Quote',         short: 'Prep Quote',  next: 'Build quote in Housecall Pro — include NCC and all repair options' },
   { id: 's5', label: 'N. Send Quote',            short: 'Send Quote',  next: 'Send quote to customer — call to confirm they received it' },
   { id: 's6', label: 'N. Follow Up / Pending',   short: 'Follow Up',   next: 'Call customer — confirm quote received, answer questions, push for decision' },
+  { id: 's9', label: 'CIL Requested',            short: 'CIL Req',     next: 'Cash-in-Lieu offered — work paused, customer notified, job tagged. Waiting on accept/deny from the warranty company.' },
   { id: 's7', label: 'N. Order Parts',           short: 'Order Parts', next: 'Order parts now — confirm ETA and schedule install date' },
   { id: 's8', label: 'Waiting for Parts',        short: 'Waiting',     next: 'Parts ordered — check ETA daily, keep customer updated' },
+  { id: 's10', label: 'CIL Accepted',            short: 'CIL Acc',     next: 'Cash-in-Lieu accepted — STOP all work, invoice for work already done. Customer notified. Office closes it out.' },
 ];
 
 // Stages with a one-tap Dispatch status message (must match the Make scenario routes + ledger keys)
