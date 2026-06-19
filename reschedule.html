@@ -113,7 +113,7 @@ async function load(){
   }catch(e){ showState("We couldn't load available days right now. Please try again, or call us at <b>305-449-9924</b>."); return; }
 
   if(String(data.used).toLowerCase()==="true"){
-    showState("This reschedule link has already been used. If you need another change, just call or text us at <b>305-449-9924</b>."); return;
+    showState("Your appointment has been moved. To request a specific time that day, text or call us at <b>305-449-9924</b>."); return;
   }
 
   const sched = data.scheduled_date || "";
@@ -170,7 +170,9 @@ async function submitReschedule(date){
       '<p>We’ve moved your appointment to <b>'+prettyDate(date)+'</b>, 8&nbsp;AM–5&nbsp;PM. '+
       'Prefer a specific time? Call or text <b>305-449-9924</b>.</p>'+
       '<button class="btn primary" id="doneBtn">Done</button>';
-    document.getElementById('doneBtn').onclick = ()=>{ closeModal(); load(); };
+    // Do NOT re-fetch availability — the link is now used. Show a static confirmation instead.
+    document.getElementById('doneBtn').onclick = ()=>{ closeModal();
+      showState("Your appointment has been moved to <b>"+prettyDate(date)+"</b>, 8&nbsp;AM–5&nbsp;PM. To request a specific time that day, text or call <b>305-449-9924</b>."); };
   } else if(res.status==="rejected"){
     modalBox.innerHTML = '<h2>That day just filled up</h2>'+
       '<p>Sorry — that day reached capacity. Please pick another, or call us at <b>305-449-9924</b>.</p>'+
