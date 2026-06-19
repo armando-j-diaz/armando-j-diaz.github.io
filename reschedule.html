@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>JET AC — Reschedule Your Appointment</title>
+<style>
+  :root{
+    --navy:#0f2c4d; --blue:#1d6fb8; --accent:#1d6fb8; --bg:#f4f6f9;
+    --good:#1f9d57; --warn:#c9802b; --full:#9aa3ad; --card:#ffffff; --line:#e3e8ef;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:#16202b;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:520px;margin:0 auto;padding:20px 16px 48px}
+  .brand{display:flex;align-items:center;gap:10px;margin:6px 0 18px}
+  .brand .logo{font-weight:800;font-size:22px;color:var(--navy);letter-spacing:.5px}
+  .brand .logo span{color:var(--blue)}
+  h1{font-size:20px;margin:0 0 6px;color:var(--navy)}
+  p.lead{margin:0 0 18px;color:#46566a;line-height:1.5;font-size:15px}
+  .sched{background:#eaf2fb;border:1px solid #cfe1f5;border-radius:12px;padding:12px 14px;margin:0 0 18px;font-size:14px;color:#2a445e}
+  .sched b{color:var(--navy)}
+  .days{display:flex;flex-direction:column;gap:10px}
+  .day{display:flex;align-items:center;justify-content:space-between;background:var(--card);
+    border:1px solid var(--line);border-radius:14px;padding:16px 16px;cursor:pointer;
+    transition:transform .06s ease,box-shadow .12s ease,border-color .12s ease}
+  .day:hover{border-color:var(--blue);box-shadow:0 4px 14px rgba(29,111,184,.12)}
+  .day:active{transform:scale(.99)}
+  .day .d-name{font-weight:700;font-size:16px;color:var(--navy)}
+  .day .d-sub{font-size:13px;color:#6b7888;margin-top:2px}
+  .pill{font-size:12.5px;font-weight:700;padding:6px 11px;border-radius:999px;white-space:nowrap}
+  .pill.good{background:#e7f6ee;color:var(--good)}
+  .pill.warn{background:#fbf0e1;color:var(--warn)}
+  .pill.full{background:#eef1f4;color:var(--full)}
+  .day.isfull{cursor:not-allowed;opacity:.6}
+  .day.isfull:hover{border-color:var(--line);box-shadow:none}
+  .note{margin:20px 2px 0;font-size:12.5px;color:#7a8696;line-height:1.5;text-align:center}
+  .state{text-align:center;padding:40px 10px;color:#46566a}
+  .spinner{width:30px;height:30px;border:3px solid #d5deea;border-top-color:var(--blue);
+    border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  /* modal */
+  .overlay{position:fixed;inset:0;background:rgba(15,44,77,.5);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
+  .overlay.show{display:flex}
+  .modal{background:#fff;border-radius:16px;max-width:380px;width:100%;padding:22px 20px;text-align:center}
+  .modal h2{margin:0 0 8px;font-size:18px;color:var(--navy)}
+  .modal p{margin:0 0 18px;color:#46566a;font-size:14.5px;line-height:1.5}
+  .btn{display:block;width:100%;border:0;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer}
+  .btn.primary{background:var(--blue);color:#fff;margin-bottom:10px}
+  .btn.ghost{background:#eef1f4;color:#46566a}
+  .ok-icon{font-size:42px;line-height:1;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><div class="logo">JET<span>AC</span></div></div>
+
+  <div id="content">
+    <div class="state"><div class="spinner"></div>Loading your options…</div>
+  </div>
+
+  <div class="note">Reschedules give you the new <b>day</b> with an 8&nbsp;AM–5&nbsp;PM arrival window.
+    Prefer a specific time? Call or text us at <b>305-449-9924</b>.</div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modalBox"></div>
+</div>
+
+<script>
+const AVAIL_URL = "https://hook.us2.make.com/z7qh3biyi7bpgm7t96sds2iwoo4944da";
+const RESCH_URL = "https://hook.us2.make.com/d7mwgedaki0zk56tw3aykddx61gmwxfd";
+const CAND_COUNT = 7;   // candidates computed; first 5 non-scheduled shown
+const SHOW_COUNT = 5;
+
+const qs = new URLSearchParams(location.search);
+const TOKEN = qs.get("t") || "";
+const content = document.getElementById("content");
+const overlay = document.getElementById("overlay");
+const modalBox = document.getElementById("modalBox");
+
+// ---- date helpers (timezone-safe calendar math) ----
+function etToday(){
+  return new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+}
+function addDaysISO(iso,n){
+  const [y,m,d]=iso.split('-').map(Number);
+  const dt=new Date(Date.UTC(y,m-1,d)); dt.setUTCDate(dt.getUTCDate()+n);
+  return dt.toISOString().slice(0,10);
+}
+function weekdayUTC(iso){ const [y,m,d]=iso.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)).getUTCDay(); }
+function nextBusinessDays(n){
+  const out=[]; const t=etToday(); let i=1;
+  while(out.length<n && i<40){ const dd=addDaysISO(t,i); const w=weekdayUTC(dd); if(w!==0&&w!==6) out.push(dd); i++; }
+  return out;
+}
+function prettyDate(iso){
+  const [y,m,d]=iso.split('-').map(Number);
+  return new Intl.DateTimeFormat('en-US',{timeZone:'UTC',weekday:'long',month:'long',day:'numeric'}).format(new Date(Date.UTC(y,m-1,d)));
+}
+
+function showState(html){ content.innerHTML = '<div class="state">'+html+'</div>'; }
+function closeModal(){ overlay.classList.remove('show'); }
+
+async function load(){
+  if(!TOKEN){ showState("This link looks incomplete. Please use the link from your text message, or call us at <b>305-449-9924</b>."); return; }
+  const dates = nextBusinessDays(CAND_COUNT);
+  let data;
+  try{
+    const r = await fetch(AVAIL_URL+"?t="+encodeURIComponent(TOKEN)+"&dates="+dates.join(","));
+    data = await r.json();
+  }catch(e){ showState("We couldn't load available days right now. Please try again, or call us at <b>305-449-9924</b>."); return; }
+
+  if(String(data.used).toLowerCase()==="true"){
+    showState("This reschedule link has already been used. If you need another change, just call or text us at <b>305-449-9924</b>."); return;
+  }
+
+  const sched = data.scheduled_date || "";
+  const days = (data.days||[]).filter(d => d.date !== sched).slice(0, SHOW_COUNT);
+  const name = (data.first_name||"").trim();
+
+  let html = "";
+  html += '<h1>'+(name? "Hi "+name+"," : "Hi there,")+'</h1>';
+  html += '<p class="lead">Can’t make your scheduled day? Pick another below and we’ll move you — it updates automatically.</p>';
+  if(sched){ html += '<div class="sched">You’re currently scheduled for <b>'+prettyDate(sched)+'</b>.</div>'; }
+  html += '<div class="days">';
+  if(!days.length){ html += '<div class="state">No open days to show right now. Please call us at <b>305-449-9924</b>.</div>'; }
+  days.forEach(d=>{
+    const spots = Number(d.spots_left);
+    const isFull = d.full===true || d.full==="true" || spots<=0;
+    let pillClass="good", pillTxt=spots+" spots open";
+    if(isFull){ pillClass="full"; pillTxt="Full"; }
+    else if(spots<=4){ pillClass="warn"; pillTxt=spots+(spots===1?" spot left":" spots left"); }
+    html += '<div class="day'+(isFull?' isfull':'')+'" '+(isFull?'':'data-date="'+d.date+'"')+'>'+
+              '<div><div class="d-name">'+prettyDate(d.date)+'</div><div class="d-sub">8 AM – 5 PM arrival</div></div>'+
+              '<div class="pill '+pillClass+'">'+pillTxt+'</div>'+
+            '</div>';
+  });
+  html += '</div>';
+  content.innerHTML = html;
+
+  document.querySelectorAll('.day[data-date]').forEach(el=>{
+    el.addEventListener('click', ()=>confirmDay(el.getAttribute('data-date')));
+  });
+}
+
+function confirmDay(date){
+  modalBox.innerHTML =
+    '<h2>Move to '+prettyDate(date)+'?</h2>'+
+    '<p>We’ll reschedule your appointment to <b>'+prettyDate(date)+'</b> with an 8&nbsp;AM–5&nbsp;PM arrival window.</p>'+
+    '<button class="btn primary" id="goBtn">Yes, move my appointment</button>'+
+    '<button class="btn ghost" id="cancelBtn">Never mind</button>';
+  overlay.classList.add('show');
+  document.getElementById('cancelBtn').onclick = closeModal;
+  document.getElementById('goBtn').onclick = ()=>submitReschedule(date);
+}
+
+async function submitReschedule(date){
+  modalBox.innerHTML = '<div class="spinner"></div><p>Updating your appointment…</p>';
+  let res;
+  try{
+    const r = await fetch(RESCH_URL, {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({t:TOKEN, new_date:date})});
+    res = await r.json();
+  }catch(e){ res = {status:"error"}; }
+
+  if(res.status==="ok"){
+    modalBox.innerHTML = '<div class="ok-icon">✅</div><h2>You’re all set!</h2>'+
+      '<p>We’ve moved your appointment to <b>'+prettyDate(date)+'</b>, 8&nbsp;AM–5&nbsp;PM. '+
+      'Prefer a specific time? Call or text <b>305-449-9924</b>.</p>'+
+      '<button class="btn primary" id="doneBtn">Done</button>';
+    document.getElementById('doneBtn').onclick = ()=>{ closeModal(); load(); };
+  } else if(res.status==="rejected"){
+    modalBox.innerHTML = '<h2>That day just filled up</h2>'+
+      '<p>Sorry — that day reached capacity. Please pick another, or call us at <b>305-449-9924</b>.</p>'+
+      '<button class="btn primary" id="backBtn">Pick another day</button>';
+    document.getElementById('backBtn').onclick = ()=>{ closeModal(); load(); };
+  } else {
+    modalBox.innerHTML = '<h2>Something went wrong</h2>'+
+      '<p>We couldn’t update your appointment. Please call or text us at <b>305-449-9924</b>.</p>'+
+      '<button class="btn ghost" id="backBtn">Close</button>';
+    document.getElementById('backBtn').onclick = closeModal;
+  }
+}
+
+overlay.addEventListener('click', e=>{ if(e.target===overlay) closeModal(); });
+load();
+</script>
+</body>
+</html>
