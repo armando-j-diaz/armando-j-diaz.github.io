@@ -89,6 +89,8 @@
   .s9-bar { background: #db2777; }
   .s10  { color: #fca5a5; background: #2a0d0d; border-color: #b91c1c; }
   .s10-bar { background: #dc2626; }
+  .s11  { color: #5eead4; background: #042f2e; border-color: #0f766e; }
+  .s11-bar { background: #14b8a6; }
   .filter-all { color: #e2e8f0; background: #1e293b; border-color: #334155; }
   .filter-all.active { background: #334155; opacity: 1; }
   .filter-completed { color: #4ade80; background: #0a1a0a; border-color: #15803d; margin-left: auto; }
@@ -105,6 +107,15 @@
   .send-btn.sent   { border-color: #15803d; background: #052e16; color: #4ade80; cursor: default; }
   .send-btn.dup    { border-color: #334155; background: #1a1f2e; color: #64748b; cursor: default; }
   .send-btn.failed { border-color: #991b1b; background: #3b1010; color: #f87171; }
+
+  /* Authorize button (AUTHO Required cards only) */
+  .authorize-btn { margin-top: 8px; width: 100%; padding: 7px; border: 1px solid #991b1b; background: #2a0d0d; color: #fca5a5; border-radius: 6px; font-size: 0.72rem; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+  .authorize-btn:hover { background: #3b1010; color: #fff; }
+
+  /* Send Pipeline to Dispatch (header) */
+  .pushdispatch-btn { background: #042f2e; color: #5eead4; border: 1px solid #0f766e; border-radius: 8px; padding: 8px 16px; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+  .pushdispatch-btn:hover { background: #0a3f3c; }
+  .pushdispatch-btn:disabled { opacity: 0.5; cursor: wait; }
 
   .followup-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
   .followup-row input[type="datetime-local"] { flex: 1; background: #0f1117; border: 1px solid #334155; border-radius: 6px; padding: 5px 9px; color: #e2e8f0; font-size: 0.72rem; outline: none; font-family: inherit; color-scheme: dark; }
@@ -176,6 +187,7 @@
     <div class="sync-status sync-busy" id="sync-status">⬤ Loading…</div>
     <div class="badge-count" id="total-count">— jobs</div>
     <button class="sync-btn" id="sync-btn" onclick="syncNow()" title="Pull paused jobs from Dispatch into the sheet right now">🔄 Sync Dispatch</button>
+    <button class="pushdispatch-btn" id="pushdispatch-btn" onclick="pushPipelineToDispatch()" title="Write every card's stage as a tag onto its Dispatch job">🏷️ Send Pipeline to Dispatch</button>
     <button class="sendall-btn" id="sendall-btn" onclick="sendAll()">📨 Send All Updates</button>
     <button class="add-btn" onclick="openModal()">+ Add Job</button>
   </div>
@@ -220,6 +232,7 @@
         <option value="N. Follow Up / Pending" selected>N. Follow Up / Pending</option>
         <option value="N. Order Parts">N. Order Parts</option>
         <option value="Waiting for Parts">Waiting for Parts</option>
+        <option value="Ready to RS">Ready to RS</option>
       </select>
     </div>
     <div class="form-group">
@@ -259,6 +272,7 @@ const STAGES = [
   { id: 's9', label: 'CIL Requested',            short: 'CIL Req',     next: 'Cash-in-Lieu offered — work paused, customer notified, job tagged. Waiting on accept/deny from the warranty company.' },
   { id: 's7', label: 'N. Order Parts',           short: 'Order Parts', next: 'Order parts now — confirm ETA and schedule install date' },
   { id: 's8', label: 'Waiting for Parts',        short: 'Waiting',     next: 'Parts ordered — check ETA daily, keep customer updated' },
+  { id: 's11', label: 'Ready to RS',             short: 'Ready RS',    next: 'Parts in / job ready — reschedule the install with the customer now' },
   { id: 's10', label: 'CIL Accepted',            short: 'CIL Acc',     next: 'Cash-in-Lieu accepted — STOP all work, invoice for work already done. Customer notified. Office closes it out.' },
 ];
 
@@ -322,6 +336,7 @@ async function loadFromSheet() {
         followup: r.FollowUp || '',
         updatedBy: r.UpdatedBy || '',
         updatedAt: r.UpdatedAt || '',
+        dispatchId: r.DispatchJobId ? String(r.DispatchJobId) : '',
         done: false,
         rowIndex: r.rowIndex
       }));
@@ -364,6 +379,7 @@ async function pushRow(job) {
           FollowUp: job.followup,
           UpdatedBy: job.updatedBy,
           UpdatedAt: job.updatedAt,
+          DispatchJobId: job.dispatchId || '',
           rowIndex: job.rowIndex
         }
       })
@@ -415,6 +431,25 @@ async function syncNow() {
   setTimeout(() => { btn.textContent = '🔄 Sync Dispatch'; btn.disabled = false; }, 4000);
 }
 
+// ─── PUSH PIPELINE → DISPATCH (write every card's stage as a tag) ──────────
+async function pushPipelineToDispatch() {
+  const pushable = JOBS.filter(j => !j.done && /^\d+$/.test(j.dispatchId || '') && j.stage !== 's0');
+  if (!confirm(`Write the current pipeline stage as a tag onto ${pushable.length} Dispatch job(s)?\n\nUnclassified (Paused) and manually-added cards are skipped. This replaces only the JET stage tag on each job — other Dispatch tags are preserved.`)) return;
+  const btn = document.getElementById('pushdispatch-btn');
+  btn.disabled = true;
+  btn.textContent = '🏷️ Sending…';
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=pushAllStages');
+    const data = await res.json();
+    const p = parseInt(data.pushed) || 0, f = parseInt(data.failed) || 0, s = parseInt(data.skipped) || 0;
+    btn.textContent = f > 0 ? `⚠️ ${p} sent · ${f} failed` : `✓ ${p} sent to Dispatch`;
+    if (f > 0) console.warn('Push errors:', data.errors);
+  } catch(e) {
+    btn.textContent = '⚠️ Push failed — retry';
+  }
+  setTimeout(() => { btn.textContent = '🏷️ Send Pipeline to Dispatch'; btn.disabled = false; }, 5000);
+}
+
 // ─── STATUS MESSAGE SENDING (manual, ledger-gated) ────────
 function canSend(job) {
   return !!SENDABLE[job.stage] && /^\d+$/.test(job.id);
@@ -443,6 +478,14 @@ function sendBtnHtml(job) {
   if (st === 'not_found') return `<button class="send-btn failed" onclick="sendUpdate('${job.id}','${job.stage}')">⚠️ WO not found in Dispatch — retry</button>`;
   if (st === 'error')     return `<button class="send-btn failed" onclick="sendUpdate('${job.id}','${job.stage}')">⚠️ Failed — tap to retry</button>`;
   return `<button class="send-btn" onclick="sendUpdate('${job.id}','${job.stage}')">📨 Send "${s.short}" status text</button>`;
+}
+
+// ─── AUTHORIZE BUTTON (AUTHO Required cards) ───────────────
+// Opens the Dispatch billing-authorization page for the job. Needs the
+// Dispatch Job ID (not the WO), so it only renders once that's stored.
+function authorizeBtnHtml(job) {
+  if (job.stage !== 's2' || !/^\d+$/.test(job.dispatchId || '')) return '';
+  return `<button class="authorize-btn" onclick="window.open('https://work.dispatch.me/billing/authorize/job/${job.dispatchId}','_blank')">🔐 Open Authorization Page</button>`;
 }
 
 async function sendUpdate(jobId, stage) {
@@ -602,6 +645,7 @@ function render() {
       <select class="stage-select" onchange="updateStage('${j.id}', this.value)">
         ${STAGES.map(st => `<option value="${st.id}" ${st.id === j.stage ? 'selected' : ''}>${st.label}</option>`).join('')}
       </select>
+      ${authorizeBtnHtml(j)}
       ${sendBtnHtml(j)}
       <button class="done-btn" onclick="markDone('${j.id}', '${j.customer.replace(/'/g,"\\'")}')">✅ Mark Complete</button>
     </div>`;
