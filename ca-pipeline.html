@@ -477,7 +477,7 @@ function sendBtnHtml(job) {
   if (st === 'duplicate') return `<button class="send-btn dup" disabled>✓ Already sent for this stage</button>`;
   if (st === 'not_found') return `<button class="send-btn failed" onclick="sendUpdate('${job.id}','${job.stage}')">⚠️ WO not found in Dispatch — retry</button>`;
   if (st === 'error')     return `<button class="send-btn failed" onclick="sendUpdate('${job.id}','${job.stage}')">⚠️ Failed — tap to retry</button>`;
-  return `<button class="send-btn" onclick="sendUpdate('${job.id}','${job.stage}')">📨 Send "${s.short}" status text</button>`;
+  return `<button class="authorize-btn" onclick="window.open('https://work.dispatch.me/schedule/job/${job.dispatchId}','_blank')">🔗 Open Job in Dispatch</button>`;
 }
 
 // ─── AUTHORIZE BUTTON (AUTHO Required cards) ───────────────
