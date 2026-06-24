@@ -477,15 +477,15 @@ function sendBtnHtml(job) {
   if (st === 'duplicate') return `<button class="send-btn dup" disabled>✓ Already sent for this stage</button>`;
   if (st === 'not_found') return `<button class="send-btn failed" onclick="sendUpdate('${job.id}','${job.stage}')">⚠️ WO not found in Dispatch — retry</button>`;
   if (st === 'error')     return `<button class="send-btn failed" onclick="sendUpdate('${job.id}','${job.stage}')">⚠️ Failed — tap to retry</button>`;
-  return `<button class="authorize-btn" onclick="window.open('https://work.dispatch.me/schedule/job/${job.dispatchId}','_blank')">🔗 Open Job in Dispatch</button>`;
+  return `<button class="send-btn" onclick="sendUpdate('${job.id}','${job.stage}')">📨 Send "${s.short}" status text</button>`;
 }
 
-// ─── AUTHORIZE BUTTON (AUTHO Required cards) ───────────────
-// Opens the Dispatch billing-authorization page for the job. Needs the
-// Dispatch Job ID (not the WO), so it only renders once that's stored.
+// ─── VIEW-DISPATCH BUTTON (all cards with a Dispatch Job ID) ───────────────
+// Opens the job's Dispatch page in a new tab. Renders on any card that has a
+// stored numeric Dispatch Job ID (so manual MAN-… cards don't show it).
 function authorizeBtnHtml(job) {
-  if (job.stage !== 's2' || !/^\d+$/.test(job.dispatchId || '')) return '';
-  return `<button class="authorize-btn" onclick="window.open('https://work.dispatch.me/billing/authorize/job/${job.dispatchId}','_blank')">🔐 Open Authorization Page</button>`;
+  if (!/^\d+$/.test(job.dispatchId || '')) return '';
+  return `<button class="authorize-btn" onclick="window.open('https://work.dispatch.me/schedule/job/${job.dispatchId}','_blank')">🔗 View Dispatch</button>`;
 }
 
 async function sendUpdate(jobId, stage) {
