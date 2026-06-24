@@ -411,7 +411,7 @@ function stampUpdate(job) {
 function debouncePush(job) {
   lastEditAt = Date.now();
   clearTimeout(syncTimer[job.id]);
-  syncTimer[job.id] = setTimeout(() => pushRow(job), 1200);
+  syncTimer[job.id] = setTimeout(() => pushRow(job), 2000);
 }
 
 // ─── ON-DEMAND DISPATCH SYNC ───────────────────────────────
