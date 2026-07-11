@@ -132,6 +132,7 @@
       <input class="search-input" id="search-box" type="text" placeholder="Search name, job #, reply…" oninput="applyFilters()" />
     </div>
     <button type="button" class="filter-btn" id="human-filter" onclick="toggleHumanFilter()" title="Only rows that need a human">Needs human</button>
+    <button type="button" class="filter-btn" id="recent-filter" onclick="toggleRecentFilter()" title="Only jobs completed (or asked) today or yesterday">Today + Yesterday</button>
     <span class="record-count" id="record-count"></span>
   </div>
 
@@ -160,12 +161,13 @@
   const COL = { TS:0, EVENT:1, STAGE:2, CUSTOMER_ID:3, JOB_ID:4, JOB_LINK:5, WO:6,
                 NAME:7, CITY:8, SERVICE:9, SENTIMENT:10, REPLY:11, REPLY_WORDS:12, COMPLETED:13 };
 
+  // '5★ landed' card hidden until the review_landed handler exists (no scenario writes it yet).
+  // bucketOf/badge logic for 'landed' stays so old rows render fine if it ever fires.
   const STAGES = [
     { key: 'asked',   cls: 's-asked',   label: 'Asked',       sub: 'awaiting reply' },
     { key: 'replied', cls: 's-replied', label: 'Replied',     sub: 'customer responded' },
     { key: 'happy',   cls: 's-happy',   label: 'Happy',       sub: 'positive signal' },
     { key: 'sent',    cls: 's-sent',    label: 'Review link', sub: 'portal link sent' },
-    { key: 'landed',  cls: 's-landed',  label: '5★ landed',   sub: 'review confirmed' },
     { key: 'human',   cls: 's-human',   label: 'Needs human', sub: 'escalated / unclear / on-hold' },
   ];
 
@@ -173,7 +175,7 @@
   //  STATE
   // ─────────────────────────────────────
   let allData = [], filteredData = [], refreshTimer = null;
-  let activeStage = null, humanOnly = false;
+  let activeStage = null, humanOnly = false, recentOnly = false;
 
   // ─────────────────────────────────────
   //  AUTH
@@ -221,20 +223,14 @@
   // ─────────────────────────────────────
   async function loadData() {
     document.getElementById('last-updated').textContent = 'Refreshing…';
-    if (!SHEET_CSV_URL || SHEET_CSV_URL.startsWith('PASTE_')) { renderDemo(); document.getElementById('last-updated').textContent = 'Demo data (sheet not wired yet)'; return; }
     try {
       const resp = await fetch(SHEET_CSV_URL);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const rows = parseCSV(await resp.text()).slice(1);   // drop header
       allData = collapse(rows);
       const t = new Date();
-      if (!allData.length) {   // sheet has only the header so far → show demo layout
-        renderDemo();
-        document.getElementById('last-updated').textContent = 'Connected · no rows yet (showing demo) · ' + t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        return;
-      }
       document.getElementById('last-updated').textContent = 'Updated ' + t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      applyFilters();
+      renderFunnel(); applyFilters();
     } catch (err) {
       document.getElementById('last-updated').textContent = 'Error — check feed';
       document.getElementById('table-container').innerHTML = `<div class="error-state">⚠️ Could not load data.<br><small>${err.message}</small></div>`;
@@ -257,13 +253,19 @@
       set('jobTitle', r[COL.WO]); set('customerName', r[COL.NAME]); set('city', r[COL.CITY]);
       set('serviceType', r[COL.SERVICE]); set('sentiment', r[COL.SENTIMENT]);
       set('completedAt', r[COL.COMPLETED]);
-      if (r[COL.REPLY]) { rec.replyText = r[COL.REPLY]; rec.replyAt = r[COL.TS]; }
+      if (r[COL.REPLY]) { rec.replyText = stripRelayWrapper(r[COL.REPLY]); rec.replyAt = r[COL.TS]; }
       if (ev === 'nudge_sent' && !rec.askedAt) rec.askedAt = r[COL.TS];
       if (ev === 'review_link_sent') rec.reviewSentAt = r[COL.TS];
       if (ev === 'review_landed') rec.reviewLandedAt = r[COL.TS];
     }
     // paused_skip rows were never asked → exclude from the funnel
     return Object.values(byCust).filter(r => (r.stage || '') !== 'paused_skip');
+  }
+
+  // Older sheet rows stored the full Dispatch relay email; new rows arrive pre-cleaned by Msg-2.
+  function stripRelayWrapper(t) {
+    if (!t) return t;
+    return t.replace(/^[\s\S]*?sent you a message:\s*["“]?/, '').replace(/["”]?\s*To respond[\s\S]*$/, '').trim();
   }
 
   // ─────────────────────────────────────
@@ -284,6 +286,25 @@
     if (humanOnly) activeStage = null;
     renderFunnel(); applyFilters();
   }
+  function toggleRecentFilter() {
+    recentOnly = !recentOnly;
+    document.getElementById('recent-filter').classList.toggle('active', recentOnly);
+    applyFilters();
+  }
+  function dateKeyLocal(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function isTodayOrYesterday(r) {
+    const today = new Date();
+    const yest = new Date(today); yest.setDate(yest.getDate() - 1);
+    const keys = new Set([dateKeyLocal(today), dateKeyLocal(yest)]);
+    for (const v of [r.completedAt, r.askedAt, r.replyAt]) {
+      if (!v) continue;
+      const d = new Date(v);
+      if (!isNaN(d) && keys.has(dateKeyLocal(d))) return true;
+    }
+    return false;
+  }
   function setStage(key) {
     activeStage = (activeStage === key) ? null : key;
     if (activeStage) humanOnly = false;
@@ -295,7 +316,7 @@
     filteredData = allData.filter(r => {
       const b = bucketOf(r);
       const hay = [r.customerName, r.jobTitle, r.jobId, r.replyText, r.city].join(' ').toLowerCase();
-      return (!q || hay.includes(q)) && (!activeStage || b === activeStage) && (!humanOnly || b === 'human');
+      return (!q || hay.includes(q)) && (!activeStage || b === activeStage) && (!humanOnly || b === 'human') && (!recentOnly || isTodayOrYesterday(r));
     });
     renderTable();
   }
@@ -342,24 +363,6 @@
     document.getElementById('table-container').innerHTML = html + `</tbody></table>`;
   }
 
-  // ─────────────────────────────────────
-  //  DEMO DATA (until SHEET_CSV_URL is wired) — mirrors the 07/11 HCP scan
-  // ─────────────────────────────────────
-  function renderDemo() {
-    allData = [
-      { customerId:'1', customerName:'Jennifer Digiacomo', jobId:'112568155', jobTitle:'62835159 A/C', city:'Miami', stage:'closed', sentiment:'happy',
-        replyText:'…yes! I had an outstanding experience with Javier who came out yesterday & today. Professional, punctual, incredibly knowledgeable… I couldn’t be happier and he definitely deserves the recognition! 🙂',
-        askedAt:'2026-07-10T18:00:00Z', replyAt:'2026-07-10T19:10:00Z', reviewSentAt:'2026-07-10T19:12:00Z' },
-      { customerId:'2', customerName:'Alina Levanti', jobId:'112560201', jobTitle:'62650339 A/C', city:'Aventura', stage:'needs_human', sentiment:'unclear',
-        replyText:'Your guy was prompt and professional. Knew the problem… My house is still hot, but he said he would be back tomorrow morning to fix it.',
-        askedAt:'2026-07-10T17:30:00Z', replyAt:'2026-07-10T18:05:00Z' },
-      { customerId:'3', customerName:'Maria & Gabriela Baistrocchi', jobId:'112544019', jobTitle:'62439119 A/C', city:'Doral', stage:'asked', askedAt:'2026-07-10T16:00:00Z' },
-      { customerId:'4', customerName:'Patricia Oliveira', jobId:'112541880', jobTitle:'62510169 A/C', city:'Miami', stage:'asked', askedAt:'2026-07-10T15:30:00Z' },
-      { customerId:'5', customerName:'Luz Carmona', jobId:'112538099', jobTitle:'62538099 A/C RECALL', city:'Hialeah', stage:'asked', askedAt:'2026-07-10T15:00:00Z' },
-      { customerId:'6', customerName:'Katrina Moore', jobId:'112530044', jobTitle:'62470759 A/C', city:'Miramar', stage:'asked', askedAt:'2026-07-10T14:30:00Z' },
-    ];
-    applyFilters();
-  }
 </script>
 </body>
 </html>
