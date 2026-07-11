@@ -66,6 +66,9 @@
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: #f8fafc; }
     .job-num { font-weight: 700; font-size: 13px; color: #1e293b; }
+    a.tlink { color: #2563eb; text-decoration: none; }
+    a.tlink:hover { text-decoration: underline; }
+    a.tlink .job-num { color: #2563eb; }
     .customer-name { font-weight: 600; }
     .reply-text { max-width: 340px; color: #334155; font-size: 13px; line-height: 1.35; }
     .reply-meta { font-size: 11px; color: #94a3b8; margin-top: 3px; }
@@ -79,7 +82,6 @@
     .badge-emerald{ background: #d1fae5; color: #047857; }
     .badge-red    { background: #fee2e2; color: #991b1b; }
     .badge-yellow { background: #fef9c3; color: #854d0e; }
-
     .flag { color: #b91c1c; font-weight: 700; }
     .len-long { color: #b45309; font-weight: 700; }
     .len-ok   { color: #059669; font-weight: 600; }
@@ -122,10 +124,8 @@
     </div>
   </header>
 
-  <!-- Funnel stat cards (click to filter) -->
   <div class="funnel" id="funnel"></div>
 
-  <!-- Controls -->
   <div class="controls">
     <div class="search-wrap">
       <span class="search-icon">🔍</span>
@@ -141,28 +141,32 @@
     </div>
   </div>
 
-  <footer>Review Funnel · reads Survey ledger (Make 116481) · auto-refreshes every 60 s · internal use only</footer>
+  <footer>Review Funnel · reads the ReviewTracker sheet (free reads) · datastore 116481 = source of truth · internal use only</footer>
 </div>
 
 <script>
   // ─────────────────────────────────────
   //  CONFIG
   // ─────────────────────────────────────
-  const PASSWORD = 'worker2026';                                  // same gate as intake dashboard; change if desired
-  const DATA_URL = 'PASTE_MAKE_READ_WEBHOOK_URL_HERE';            // Make webhook that searches data store 116481 and returns JSON (see REVIEW_TRACKER_MASTER.md)
+  const PASSWORD = 'worker2026';                         // same gate as intake dashboard
+  // Published CSV of the ReviewTracker sheet tab (File ▸ Share ▸ Publish to web ▸ ReviewTracker ▸ CSV).
+  // Reading a published sheet costs ZERO Make operations.
+  const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ_ET0tI7CyDMdDOtXP9MOyFZnIbkgrnIaZ2V0el70eMGo9tX8hA3vq58tMT-JOhZad_OCQeqG_X5X7/pub?gid=0&single=true&output=csv';
   const REFRESH_MS = 60000;
 
-  // Funnel stage definitions. `stage` values come from the ledger; we map them to funnel buckets.
-  // Ledger stages today: asked · closed(=happy, review link sent) · escalated · needs_human · paused_skip
-  // Enriched fields the scenarios should add: customerName, phone, tech, jobTitle, completedAt,
-  //   replyText, replyAt, sentiment (happy|unhappy|unclear), reviewSentAt, reviewLandedAt
+  // Append-only log column order (row per event). MUST match the sheet header exactly.
+  // A timestamp · B event · C stage · D customerId · E jobId · F jobLink · G workOrder
+  // H customerName · I city · J serviceType · K sentiment · L replyText · M replyWords · N completedAt
+  const COL = { TS:0, EVENT:1, STAGE:2, CUSTOMER_ID:3, JOB_ID:4, JOB_LINK:5, WO:6,
+                NAME:7, CITY:8, SERVICE:9, SENTIMENT:10, REPLY:11, REPLY_WORDS:12, COMPLETED:13 };
+
   const STAGES = [
-    { key: 'asked',    cls: 's-asked',   label: 'Asked',        sub: 'awaiting reply' },
-    { key: 'replied',  cls: 's-replied', label: 'Replied',      sub: 'customer responded' },
-    { key: 'happy',    cls: 's-happy',   label: 'Happy',        sub: 'positive signal' },
-    { key: 'sent',     cls: 's-sent',    label: 'Review link',  sub: 'portal link sent' },
-    { key: 'landed',   cls: 's-landed',  label: '5★ landed',    sub: 'review confirmed' },
-    { key: 'human',    cls: 's-human',   label: 'Needs human',  sub: 'escalated / unclear / on-hold' },
+    { key: 'asked',   cls: 's-asked',   label: 'Asked',       sub: 'awaiting reply' },
+    { key: 'replied', cls: 's-replied', label: 'Replied',     sub: 'customer responded' },
+    { key: 'happy',   cls: 's-happy',   label: 'Happy',       sub: 'positive signal' },
+    { key: 'sent',    cls: 's-sent',    label: 'Review link', sub: 'portal link sent' },
+    { key: 'landed',  cls: 's-landed',  label: '5★ landed',   sub: 'review confirmed' },
+    { key: 'human',   cls: 's-human',   label: 'Needs human', sub: 'escalated / unclear / on-hold' },
   ];
 
   // ─────────────────────────────────────
@@ -197,21 +201,38 @@
   }
 
   // ─────────────────────────────────────
-  //  DATA LOAD
+  //  CSV PARSER (quoted multi-line safe) — same engine as the intake dashboard
+  // ─────────────────────────────────────
+  function parseCSV(text) {
+    const rows = []; let row = [], cur = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i], nx = text[i + 1];
+      if (ch === '"') { if (q && nx === '"') { cur += '"'; i++; } else q = !q; }
+      else if (ch === ',' && !q) { row.push(cur); cur = ''; }
+      else if ((ch === '\r' || ch === '\n') && !q) { if (ch === '\r' && nx === '\n') i++; row.push(cur); cur = ''; if (row.some(c => c !== '')) rows.push(row); row = []; }
+      else cur += ch;
+    }
+    if (cur !== '' || row.length) { row.push(cur); if (row.some(c => c !== '')) rows.push(row); }
+    return rows;
+  }
+
+  // ─────────────────────────────────────
+  //  DATA LOAD  →  collapse the event log to one record per customer
   // ─────────────────────────────────────
   async function loadData() {
     document.getElementById('last-updated').textContent = 'Refreshing…';
-    if (!DATA_URL || DATA_URL.startsWith('PASTE_')) {
-      renderDemo();
-      document.getElementById('last-updated').textContent = 'Demo data (no feed wired yet)';
-      return;
-    }
+    if (!SHEET_CSV_URL || SHEET_CSV_URL.startsWith('PASTE_')) { renderDemo(); document.getElementById('last-updated').textContent = 'Demo data (sheet not wired yet)'; return; }
     try {
-      const resp = await fetch(DATA_URL);
+      const resp = await fetch(SHEET_CSV_URL);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const json = await resp.json();
-      allData = normalize(json);
+      const rows = parseCSV(await resp.text()).slice(1);   // drop header
+      allData = collapse(rows);
       const t = new Date();
+      if (!allData.length) {   // sheet has only the header so far → show demo layout
+        renderDemo();
+        document.getElementById('last-updated').textContent = 'Connected · no rows yet (showing demo) · ' + t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return;
+      }
       document.getElementById('last-updated').textContent = 'Updated ' + t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       applyFilters();
     } catch (err) {
@@ -221,30 +242,42 @@
   }
   function startAutoRefresh() { if (refreshTimer) clearInterval(refreshTimer); refreshTimer = setInterval(loadData, REFRESH_MS); }
 
-  // Accept either an array of {key,data} (raw datastore dump) or an array of flat record objects.
-  function normalize(json) {
-    let arr = Array.isArray(json) ? json : (json.records || json.data || []);
-    return arr
-      .map(r => (r && r.data) ? r.data : r)                       // unwrap {key,data}
-      .filter(r => r && (r.customerId || r.jobId))
-      .filter(r => String(r.key || '').startsWith('cus-') || r.customerId) // prefer per-customer state rows
-      .filter(r => r.stage !== 'paused_skip');                    // paused jobs never got asked — exclude from funnel
+  // Group the append-only rows by customerId; latest non-empty value wins for each field.
+  function collapse(rows) {
+    const g = (rows || []).map(r => r.map(c => (c || '').trim()))
+      .filter(r => r[COL.CUSTOMER_ID])
+      .sort((a, b) => new Date(a[COL.TS] || 0) - new Date(b[COL.TS] || 0));
+    const byCust = {};
+    for (const r of g) {
+      const id = r[COL.CUSTOMER_ID];
+      const rec = byCust[id] || (byCust[id] = { customerId: id });
+      const ev = (r[COL.EVENT] || '').toLowerCase();
+      const set = (k, v) => { if (v) rec[k] = v; };
+      set('stage', r[COL.STAGE]); set('jobId', r[COL.JOB_ID]); set('jobLink', r[COL.JOB_LINK]);
+      set('jobTitle', r[COL.WO]); set('customerName', r[COL.NAME]); set('city', r[COL.CITY]);
+      set('serviceType', r[COL.SERVICE]); set('sentiment', r[COL.SENTIMENT]);
+      set('completedAt', r[COL.COMPLETED]);
+      if (r[COL.REPLY]) { rec.replyText = r[COL.REPLY]; rec.replyAt = r[COL.TS]; }
+      if (ev === 'nudge_sent' && !rec.askedAt) rec.askedAt = r[COL.TS];
+      if (ev === 'review_link_sent') rec.reviewSentAt = r[COL.TS];
+      if (ev === 'review_landed') rec.reviewLandedAt = r[COL.TS];
+    }
+    // paused_skip rows were never asked → exclude from the funnel
+    return Object.values(byCust).filter(r => (r.stage || '') !== 'paused_skip');
   }
 
-  // Map a raw record to a funnel bucket.
+  // ─────────────────────────────────────
+  //  BUCKET / FILTERS
+  // ─────────────────────────────────────
   function bucketOf(r) {
     const s = (r.stage || '').toLowerCase();
-    if (r.reviewLandedAt) return 'landed';
+    if (r.reviewLandedAt || s === 'landed') return 'landed';
     if (s === 'escalated' || s === 'needs_human') return 'human';
-    if (r.reviewSentAt || s === 'closed') return 'sent';          // closed = happy + AHS survey ask sent
+    if (r.reviewSentAt || s === 'closed') return 'sent';
     if ((r.sentiment || '').toLowerCase() === 'happy') return 'happy';
-    if (r.replyText || r.replyAt) return 'replied';
+    if (r.replyText) return 'replied';
     return 'asked';
   }
-
-  // ─────────────────────────────────────
-  //  FILTERS
-  // ─────────────────────────────────────
   function toggleHumanFilter() {
     humanOnly = !humanOnly;
     document.getElementById('human-filter').classList.toggle('active', humanOnly);
@@ -261,11 +294,8 @@
     const q = document.getElementById('search-box').value.toLowerCase();
     filteredData = allData.filter(r => {
       const b = bucketOf(r);
-      const hay = [r.customerName, r.jobTitle, r.jobId, r.replyText, r.tech, r.phone].join(' ').toLowerCase();
-      const matchQ = !q || hay.includes(q);
-      const matchStage = !activeStage || b === activeStage;
-      const matchHuman = !humanOnly || b === 'human';
-      return matchQ && matchStage && matchHuman;
+      const hay = [r.customerName, r.jobTitle, r.jobId, r.replyText, r.city].join(' ').toLowerCase();
+      return (!q || hay.includes(q)) && (!activeStage || b === activeStage) && (!humanOnly || b === 'human');
     });
     renderTable();
   }
@@ -273,82 +303,60 @@
   // ─────────────────────────────────────
   //  RENDER
   // ─────────────────────────────────────
-  function counts() {
-    const c = { asked:0, replied:0, happy:0, sent:0, landed:0, human:0 };
-    allData.forEach(r => { c[bucketOf(r)]++; });
-    return c;
-  }
+  function counts() { const c = { asked:0, replied:0, happy:0, sent:0, landed:0, human:0 }; allData.forEach(r => c[bucketOf(r)]++); return c; }
   function renderFunnel() {
     const c = counts();
     document.getElementById('funnel').innerHTML = STAGES.map(s => `
       <div class="stat ${s.cls} ${activeStage===s.key?'active':''}" onclick="setStage('${s.key}')">
-        <div class="num">${c[s.key]||0}</div>
-        <div class="lbl">${s.label}</div>
-        <div class="sub">${s.sub}</div>
+        <div class="num">${c[s.key]||0}</div><div class="lbl">${s.label}</div><div class="sub">${s.sub}</div>
       </div>`).join('');
   }
   function wordCount(t){ return t ? t.trim().split(/\s+/).filter(Boolean).length : 0; }
   function esc(t){ return (t==null?'':String(t)).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
   function fmt(d){ if(!d) return '—'; const x=new Date(d); return isNaN(x)?esc(d):x.toLocaleDateString([], {month:'short',day:'numeric'})+' '+x.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
-
-  const STAGE_BADGE = {
-    asked:   ['badge-gray','Asked'],
-    replied: ['badge-blue','Replied'],
-    happy:   ['badge-green','Happy'],
-    sent:    ['badge-purple','Review link sent'],
-    landed:  ['badge-emerald','5★ landed'],
-    human:   ['badge-red','Needs human'],
-  };
+  const STAGE_BADGE = { asked:['badge-gray','Asked'], replied:['badge-blue','Replied'], happy:['badge-green','Happy'], sent:['badge-purple','Review link sent'], landed:['badge-emerald','5★ landed'], human:['badge-red','Needs human'] };
   const SENTIMENT_BADGE = { happy:['badge-green','Happy'], unhappy:['badge-red','Unhappy'], unclear:['badge-yellow','Unclear'] };
 
   function renderTable() {
     document.getElementById('record-count').textContent = `${filteredData.length} of ${allData.length}`;
-    if (!filteredData.length) {
-      document.getElementById('table-container').innerHTML = `<div class="empty-state">No matching records.</div>`;
-      return;
-    }
-    // Sort: needs-human first, then replied/happy, then asked; newest first within.
+    if (!filteredData.length) { document.getElementById('table-container').innerHTML = `<div class="empty-state">No matching records.</div>`; return; }
     const order = { human:0, happy:1, replied:2, sent:3, landed:4, asked:5 };
     const rows = [...filteredData].sort((a,b) => (order[bucketOf(a)]-order[bucketOf(b)]) || (new Date(b.replyAt||b.askedAt||0)-new Date(a.replyAt||a.askedAt||0)));
-    let html = `<table><thead><tr>
-      <th>Customer</th><th>Job / WO</th><th>Tech</th><th>Stage</th><th>Reply</th><th>Sentiment</th><th>Asked</th></tr></thead><tbody>`;
+    let html = `<table><thead><tr><th>Customer</th><th>Job / WO</th><th>Stage</th><th>Reply</th><th>Sentiment</th><th>Asked</th></tr></thead><tbody>`;
     for (const r of rows) {
-      const b = bucketOf(r);
-      const [scls, slbl] = STAGE_BADGE[b];
-      const wc = wordCount(r.replyText);
-      const lenCls = wc >= 25 ? 'len-long' : (wc ? 'len-ok' : '');
-      const sent = (r.sentiment||'').toLowerCase();
-      const sb = SENTIMENT_BADGE[sent];
-      const phone = r.phone ? `<a href="tel:${esc(r.phone)}" style="color:#1e293b;text-decoration:none;">${esc(r.phone)}</a>` : '';
+      const b = bucketOf(r); const [scls, slbl] = STAGE_BADGE[b];
+      const wc = wordCount(r.replyText); const lenCls = wc >= 25 ? 'len-long' : (wc ? 'len-ok' : '');
+      const sb = SENTIMENT_BADGE[(r.sentiment||'').toLowerCase()];
+      const jobLink = r.jobLink || (/^\d+$/.test(String(r.jobId||'')) ? 'https://work.dispatch.me/job/' + r.jobId : '');
+      const jobCell = jobLink ? `<a class="tlink" href="${jobLink}" target="_blank" rel="noopener"><span class="job-num">${esc(r.jobId)}</span> ↗</a>` : `<span class="job-num">${esc(r.jobId||'—')}</span>`;
+      const cityLine = r.city ? `<div class="reply-meta">${esc(r.city)}</div>` : '';
       html += `<tr>
-        <td><div class="customer-name">${esc(r.customerName||'—')}</div><div class="reply-meta">${phone}</div></td>
-        <td><span class="job-num">${esc(r.jobId||'—')}</span><div class="reply-meta">${esc(r.jobTitle||'')}</div></td>
-        <td>${esc(r.tech||'—')}</td>
+        <td><div class="customer-name">${esc(r.customerName||'—')}</div>${cityLine}</td>
+        <td>${jobCell}<div class="reply-meta">${esc(r.jobTitle||'')}</div></td>
         <td><span class="badge ${scls}">${slbl}</span>${b==='human'?' <span class="flag">●</span>':''}</td>
         <td>${ r.replyText ? `<div class="reply-text">${esc(r.replyText)}</div><div class="reply-meta"><span class="${lenCls}">${wc} words</span>${wc>=25?' · long — nudge to portal':''}</div>` : '<span style="color:#cbd5e1;">— no reply —</span>' }</td>
         <td>${ sb ? `<span class="badge ${sb[0]}">${sb[1]}</span>` : '—' }</td>
         <td><span style="white-space:nowrap;font-size:12px;color:#475569;">${fmt(r.askedAt)}</span></td>
       </tr>`;
     }
-    html += `</tbody></table>`;
-    document.getElementById('table-container').innerHTML = html;
+    document.getElementById('table-container').innerHTML = html + `</tbody></table>`;
   }
 
   // ─────────────────────────────────────
-  //  DEMO DATA (shown until DATA_URL is wired) — mirrors the 07/11 HCP scan
+  //  DEMO DATA (until SHEET_CSV_URL is wired) — mirrors the 07/11 HCP scan
   // ─────────────────────────────────────
   function renderDemo() {
     allData = [
-      { customerId:1, customerName:'Jennifer Digiacomo', jobId:'—', tech:'Javier', stage:'closed', sentiment:'happy',
+      { customerId:'1', customerName:'Jennifer Digiacomo', jobId:'112568155', jobTitle:'62835159 A/C', city:'Miami', stage:'closed', sentiment:'happy',
         replyText:'…yes! I had an outstanding experience with Javier who came out yesterday & today. Professional, punctual, incredibly knowledgeable… I couldn’t be happier and he definitely deserves the recognition! 🙂',
         askedAt:'2026-07-10T18:00:00Z', replyAt:'2026-07-10T19:10:00Z', reviewSentAt:'2026-07-10T19:12:00Z' },
-      { customerId:2, customerName:'Alina Levanti', jobId:'—', tech:'—', stage:'needs_human', sentiment:'unclear',
+      { customerId:'2', customerName:'Alina Levanti', jobId:'112560201', jobTitle:'62650339 A/C', city:'Aventura', stage:'needs_human', sentiment:'unclear',
         replyText:'Your guy was prompt and professional. Knew the problem… My house is still hot, but he said he would be back tomorrow morning to fix it.',
         askedAt:'2026-07-10T17:30:00Z', replyAt:'2026-07-10T18:05:00Z' },
-      { customerId:3, customerName:'Maria & Gabriela Baistrocchi', jobId:'—', tech:'—', stage:'asked', askedAt:'2026-07-10T16:00:00Z' },
-      { customerId:4, customerName:'Patricia Oliveira', jobId:'—', tech:'—', stage:'asked', askedAt:'2026-07-10T15:30:00Z' },
-      { customerId:5, customerName:'Luz Carmona', jobId:'—', tech:'—', stage:'asked', askedAt:'2026-07-10T15:00:00Z' },
-      { customerId:6, customerName:'Katrina Moore', jobId:'—', tech:'—', stage:'asked', askedAt:'2026-07-10T14:30:00Z' },
+      { customerId:'3', customerName:'Maria & Gabriela Baistrocchi', jobId:'112544019', jobTitle:'62439119 A/C', city:'Doral', stage:'asked', askedAt:'2026-07-10T16:00:00Z' },
+      { customerId:'4', customerName:'Patricia Oliveira', jobId:'112541880', jobTitle:'62510169 A/C', city:'Miami', stage:'asked', askedAt:'2026-07-10T15:30:00Z' },
+      { customerId:'5', customerName:'Luz Carmona', jobId:'112538099', jobTitle:'62538099 A/C RECALL', city:'Hialeah', stage:'asked', askedAt:'2026-07-10T15:00:00Z' },
+      { customerId:'6', customerName:'Katrina Moore', jobId:'112530044', jobTitle:'62470759 A/C', city:'Miramar', stage:'asked', askedAt:'2026-07-10T14:30:00Z' },
     ];
     applyFilters();
   }
