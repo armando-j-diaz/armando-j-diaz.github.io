@@ -240,7 +240,7 @@
   async function loadData() {
     document.getElementById('last-updated').textContent = 'Refreshing…';
     try {
-      const resp = await fetch(SHEET_CSV_URL);
+      const resp = await fetch(SHEET_CSV_URL + '&_=' + Date.now(), { cache: 'no-store' });  // cache-buster: force a fresh pull each refresh
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const rows = parseCSV(await resp.text()).slice(1);   // drop header
       allData = collapse(rows);
@@ -351,7 +351,12 @@
   function renderAB() {   // nudge A/B readout: asked vs replied per variant
     const el = document.getElementById('abtest'); if (!el) return;
     const g = {};
-    allData.forEach(r => { const v = (r.variant || '').toUpperCase(); if (v !== 'A' && v !== 'B') return; (g[v] = g[v] || { asked: 0, replied: 0 }); g[v].asked++; if (r.replyText) g[v].replied++; });
+    allData.forEach(r => {
+      const raw = (r.variant || '');
+      const v = /^\d$/.test(raw) ? ('02468'.includes(raw) ? 'A' : 'B') : raw.toUpperCase();  // digit → even=A, odd=B
+      if (v !== 'A' && v !== 'B') return;
+      (g[v] = g[v] || { asked: 0, replied: 0 }); g[v].asked++; if (r.replyText) g[v].replied++;
+    });
     const parts = ['A', 'B'].filter(v => g[v]).map(v => { const { asked, replied } = g[v]; const rate = asked ? Math.round(replied / asked * 100) : 0; return `<span class="ab"><b>Nudge ${v}</b> ${v === 'A' ? '(single)' : '(two-msg)'} · ${asked} asked · ${replied} replied · <b>${rate}%</b></span>`; });
     el.innerHTML = parts.length ? `<span style="font-weight:600;">A/B nudge test:</span>` + parts.join('') : '';
   }
