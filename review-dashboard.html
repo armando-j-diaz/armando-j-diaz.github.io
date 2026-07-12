@@ -270,7 +270,7 @@
       set('serviceType', r[COL.SERVICE]); set('sentiment', r[COL.SENTIMENT]);
       set('completedAt', r[COL.COMPLETED]); set('variant', r[COL.VARIANT]);
       if (r[COL.REPLY]) { rec.replyText = stripRelayWrapper(r[COL.REPLY]); rec.replyAt = r[COL.TS]; }
-      if (ev === 'nudge_sent' && !rec.askedAt) rec.askedAt = r[COL.TS];
+      if (ev === 'nudge_sent') rec.askedAt = r[COL.TS];   // latest nudge wins, matching the latest-job collapse
       if (ev === 'review_link_sent') rec.reviewSentAt = r[COL.TS];
       if (ev === 'human_resolved') rec.resolvedAt = r[COL.TS];
     }
