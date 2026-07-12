@@ -44,7 +44,6 @@
     .s-replied .num { color: #1e40af; }
     .s-happy  .num { color: #166534; }
     .s-sent   .num { color: #7c3aed; }
-    .s-landed .num { color: #059669; }
     .s-human  .num { color: #b91c1c; }
 
     /* ── CONTROLS ── */
@@ -55,6 +54,10 @@
     .search-input:focus { border-color: #3b82f6; }
     .filter-btn { padding: 9px 14px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-weight: 600; background: white; color: #1e293b; cursor: pointer; white-space: nowrap; }
     .filter-btn.active { background: #2563eb; border-color: #2563eb; color: white; }
+    .btn-done { background: #0369a1; border-color: #0369a1; color: #fff; }
+    .btn-done:hover:not(:disabled) { background: #075985; }
+    .btn-done:disabled { opacity: .45; cursor: not-allowed; }
+    .sel-label { font-size: 13px; color: #475569; white-space: nowrap; }
     .record-count { font-size: 13px; color: #64748b; white-space: nowrap; margin-left: auto; }
 
     /* ── TABLE ── */
@@ -65,6 +68,10 @@
     td { padding: 11px 14px; font-size: 13.5px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: #f8fafc; }
+    tr.sel td { background: #eff6ff; }
+    tr.sel:hover td { background: #dbeafe; }
+    input[type="checkbox"].row-check, input[type="checkbox"]#selectAll { width: 15px; height: 15px; cursor: pointer; }
+    .col-check { width: 34px; text-align: center; }
     .job-num { font-weight: 700; font-size: 13px; color: #1e293b; }
     a.tlink { color: #2563eb; text-decoration: none; }
     a.tlink:hover { text-decoration: underline; }
@@ -79,13 +86,15 @@
     .badge-blue   { background: #dbeafe; color: #1e40af; }
     .badge-green  { background: #dcfce7; color: #166534; }
     .badge-purple { background: #ede9fe; color: #6d28d9; }
-    .badge-emerald{ background: #d1fae5; color: #047857; }
+    .badge-slate  { background: #e2e8f0; color: #334155; }
     .badge-red    { background: #fee2e2; color: #991b1b; }
     .badge-yellow { background: #fef9c3; color: #854d0e; }
     .flag { color: #b91c1c; font-weight: 700; }
     .len-long { color: #b45309; font-weight: 700; }
     .len-ok   { color: #059669; font-weight: 600; }
 
+    .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.3); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 2000; }
+    .toast.show { opacity: 1; }
     .loading-state, .empty-state { text-align: center; padding: 60px 24px; color: #94a3b8; font-size: 14px; }
     .spinner { display: inline-block; width: 30px; height: 30px; border: 3px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: spin 0.7s linear infinite; margin-bottom: 14px; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -114,7 +123,7 @@
       <span style="font-size:20px;">⭐</span>
       <div>
         <h1>Review Funnel</h1>
-        <div class="header-sub">Post-Service Survey &amp; 5-Star Tracker</div>
+        <div class="header-sub">Post-Service Survey Tracker</div>
       </div>
     </div>
     <div class="refresh-area">
@@ -131,8 +140,10 @@
       <span class="search-icon">🔍</span>
       <input class="search-input" id="search-box" type="text" placeholder="Search name, job #, reply…" oninput="applyFilters()" />
     </div>
+    <button type="button" class="filter-btn active" id="active-filter" onclick="toggleActiveOnly()" title="Hide resolved/closed and jobs 5+ days past completion (needs-human always stays)">Active only</button>
     <button type="button" class="filter-btn" id="human-filter" onclick="toggleHumanFilter()" title="Only rows that need a human">Needs human</button>
-    <button type="button" class="filter-btn" id="recent-filter" onclick="toggleRecentFilter()" title="Only jobs completed (or asked) today or yesterday">Today + Yesterday</button>
+    <span class="sel-label" id="sel-label">0 selected</span>
+    <button type="button" class="filter-btn btn-done" id="done-btn" onclick="markDone()" disabled>✓ Mark Done (<span id="sel-count">0</span>)</button>
     <span class="record-count" id="record-count"></span>
   </div>
 
@@ -142,18 +153,21 @@
     </div>
   </div>
 
-  <footer>Review Funnel · reads the ReviewTracker sheet (free reads) · datastore 116481 = source of truth · internal use only</footer>
+  <footer>Review Funnel · reads the Review Tracker sheet (free reads) · datastore 116481 = source of truth · internal use only</footer>
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
   // ─────────────────────────────────────
   //  CONFIG
   // ─────────────────────────────────────
   const PASSWORD = 'worker2026';                         // same gate as intake dashboard
-  // Published CSV of the ReviewTracker sheet tab (File ▸ Share ▸ Publish to web ▸ ReviewTracker ▸ CSV).
-  // Reading a published sheet costs ZERO Make operations.
+  // Published CSV of the "Review Tracker" sheet tab (File ▸ Share ▸ Publish to web ▸ Review Tracker ▸ CSV). Zero Make ops to read.
   const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ_ET0tI7CyDMdDOtXP9MOyFZnIbkgrnIaZ2V0el70eMGo9tX8hA3vq58tMT-JOhZad_OCQeqG_X5X7/pub?gid=0&single=true&output=csv';
+  // Make webhook that appends a `human_resolved` row per selected customerId. Fires only on button click.
+  const RESOLVE_WEBHOOK = 'https://hook.us2.make.com/gmqonk8heubt9vq22xbstpsqve8o6mpu';
   const REFRESH_MS = 60000;
+  const ACTIVE_DAYS = 5;                                 // rows older than this (since completion) drop out of "Active only"
 
   // Append-only log column order (row per event). MUST match the sheet header exactly.
   // A timestamp · B event · C stage · D customerId · E jobId · F jobLink · G workOrder
@@ -161,8 +175,6 @@
   const COL = { TS:0, EVENT:1, STAGE:2, CUSTOMER_ID:3, JOB_ID:4, JOB_LINK:5, WO:6,
                 NAME:7, CITY:8, SERVICE:9, SENTIMENT:10, REPLY:11, REPLY_WORDS:12, COMPLETED:13 };
 
-  // '5★ landed' card hidden until the review_landed handler exists (no scenario writes it yet).
-  // bucketOf/badge logic for 'landed' stays so old rows render fine if it ever fires.
   const STAGES = [
     { key: 'asked',   cls: 's-asked',   label: 'Asked',       sub: 'awaiting reply' },
     { key: 'replied', cls: 's-replied', label: 'Replied',     sub: 'customer responded' },
@@ -175,7 +187,7 @@
   //  STATE
   // ─────────────────────────────────────
   let allData = [], filteredData = [], refreshTimer = null;
-  let activeStage = null, humanOnly = false, recentOnly = false;
+  let activeStage = null, humanOnly = false, activeOnly = true;
 
   // ─────────────────────────────────────
   //  AUTH
@@ -256,7 +268,7 @@
       if (r[COL.REPLY]) { rec.replyText = stripRelayWrapper(r[COL.REPLY]); rec.replyAt = r[COL.TS]; }
       if (ev === 'nudge_sent' && !rec.askedAt) rec.askedAt = r[COL.TS];
       if (ev === 'review_link_sent') rec.reviewSentAt = r[COL.TS];
-      if (ev === 'review_landed') rec.reviewLandedAt = r[COL.TS];
+      if (ev === 'human_resolved') rec.resolvedAt = r[COL.TS];
     }
     // paused_skip rows were never asked → exclude from the funnel
     return Object.values(byCust).filter(r => (r.stage || '') !== 'paused_skip');
@@ -269,41 +281,39 @@
   }
 
   // ─────────────────────────────────────
-  //  BUCKET / FILTERS
+  //  BUCKET / ACTIVE / FILTERS
   // ─────────────────────────────────────
   function bucketOf(r) {
     const s = (r.stage || '').toLowerCase();
-    if (r.reviewLandedAt || s === 'landed') return 'landed';
+    if (r.resolvedAt || s === 'resolved') return 'resolved';   // human marked done
     if (s === 'escalated' || s === 'needs_human') return 'human';
     if (r.reviewSentAt || s === 'closed') return 'sent';
     if ((r.sentiment || '').toLowerCase() === 'happy') return 'happy';
     if (r.replyText) return 'replied';
     return 'asked';
   }
+  // Terminal (done) buckets never show under "Active only".
+  const TERMINAL = new Set(['sent', 'resolved']);
+  function isActive(r) {
+    const b = bucketOf(r);
+    if (b === 'human') return true;             // unresolved needs-human always stays active (even past 5 days)
+    if (TERMINAL.has(b)) return false;          // happy/closed + resolved → inactive
+    const ref = r.completedAt || r.askedAt || r.replyAt;   // asked/replied → active only if recent
+    if (!ref) return true;
+    const days = (Date.now() - new Date(ref).getTime()) / 86400000;
+    return isNaN(days) ? true : days <= ACTIVE_DAYS;
+  }
+
+  function toggleActiveOnly() {
+    activeOnly = !activeOnly;
+    document.getElementById('active-filter').classList.toggle('active', activeOnly);
+    applyFilters();
+  }
   function toggleHumanFilter() {
     humanOnly = !humanOnly;
     document.getElementById('human-filter').classList.toggle('active', humanOnly);
     if (humanOnly) activeStage = null;
     renderFunnel(); applyFilters();
-  }
-  function toggleRecentFilter() {
-    recentOnly = !recentOnly;
-    document.getElementById('recent-filter').classList.toggle('active', recentOnly);
-    applyFilters();
-  }
-  function dateKeyLocal(d) {
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-  }
-  function isTodayOrYesterday(r) {
-    const today = new Date();
-    const yest = new Date(today); yest.setDate(yest.getDate() - 1);
-    const keys = new Set([dateKeyLocal(today), dateKeyLocal(yest)]);
-    for (const v of [r.completedAt, r.askedAt, r.replyAt]) {
-      if (!v) continue;
-      const d = new Date(v);
-      if (!isNaN(d) && keys.has(dateKeyLocal(d))) return true;
-    }
-    return false;
   }
   function setStage(key) {
     activeStage = (activeStage === key) ? null : key;
@@ -313,10 +323,15 @@
   }
   function applyFilters() {
     const q = document.getElementById('search-box').value.toLowerCase();
+    // Drilling into a specific stage card shows that whole bucket, ignoring the Active-only cap.
+    const capActive = activeOnly && !activeStage;
     filteredData = allData.filter(r => {
       const b = bucketOf(r);
       const hay = [r.customerName, r.jobTitle, r.jobId, r.replyText, r.city].join(' ').toLowerCase();
-      return (!q || hay.includes(q)) && (!activeStage || b === activeStage) && (!humanOnly || b === 'human') && (!recentOnly || isTodayOrYesterday(r));
+      return (!q || hay.includes(q))
+        && (!activeStage || b === activeStage)
+        && (!humanOnly || b === 'human')
+        && (!capActive || isActive(r));
     });
     renderTable();
   }
@@ -324,7 +339,11 @@
   // ─────────────────────────────────────
   //  RENDER
   // ─────────────────────────────────────
-  function counts() { const c = { asked:0, replied:0, happy:0, sent:0, landed:0, human:0 }; allData.forEach(r => c[bucketOf(r)]++); return c; }
+  function counts() {   // lifetime funnel totals (all data)
+    const c = { asked:0, replied:0, happy:0, sent:0, human:0 };
+    allData.forEach(r => { const b = bucketOf(r); if (b in c) c[b]++; });
+    return c;
+  }
   function renderFunnel() {
     const c = counts();
     document.getElementById('funnel').innerHTML = STAGES.map(s => `
@@ -335,15 +354,17 @@
   function wordCount(t){ return t ? t.trim().split(/\s+/).filter(Boolean).length : 0; }
   function esc(t){ return (t==null?'':String(t)).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
   function fmt(d){ if(!d) return '—'; const x=new Date(d); return isNaN(x)?esc(d):x.toLocaleDateString([], {month:'short',day:'numeric'})+' '+x.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
-  const STAGE_BADGE = { asked:['badge-gray','Asked'], replied:['badge-blue','Replied'], happy:['badge-green','Happy'], sent:['badge-purple','Review link sent'], landed:['badge-emerald','5★ landed'], human:['badge-red','Needs human'] };
+  const STAGE_BADGE = { asked:['badge-gray','Asked'], replied:['badge-blue','Replied'], happy:['badge-green','Happy'], sent:['badge-purple','Review link sent'], resolved:['badge-slate','Done'], human:['badge-red','Needs human'] };
   const SENTIMENT_BADGE = { happy:['badge-green','Happy'], unhappy:['badge-red','Unhappy'], unclear:['badge-yellow','Unclear'] };
 
   function renderTable() {
     document.getElementById('record-count').textContent = `${filteredData.length} of ${allData.length}`;
-    if (!filteredData.length) { document.getElementById('table-container').innerHTML = `<div class="empty-state">No matching records.</div>`; return; }
-    const order = { human:0, happy:1, replied:2, sent:3, landed:4, asked:5 };
+    if (!filteredData.length) { document.getElementById('table-container').innerHTML = `<div class="empty-state">No matching records.</div>`; updateSel(); return; }
+    const order = { human:0, happy:1, replied:2, sent:3, resolved:4, asked:5 };
     const rows = [...filteredData].sort((a,b) => (order[bucketOf(a)]-order[bucketOf(b)]) || (new Date(b.replyAt||b.askedAt||0)-new Date(a.replyAt||a.askedAt||0)));
-    let html = `<table><thead><tr><th>Customer</th><th>Job / WO</th><th>Stage</th><th>Reply</th><th>Sentiment</th><th>Asked</th></tr></thead><tbody>`;
+    let html = `<table><thead><tr>
+      <th class="col-check"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="Select all shown" /></th>
+      <th>Customer</th><th>Job / WO</th><th>Stage</th><th>Reply</th><th>Sentiment</th><th>Asked</th></tr></thead><tbody>`;
     for (const r of rows) {
       const b = bucketOf(r); const [scls, slbl] = STAGE_BADGE[b];
       const wc = wordCount(r.replyText); const lenCls = wc >= 25 ? 'len-long' : (wc ? 'len-ok' : '');
@@ -352,6 +373,7 @@
       const jobCell = jobLink ? `<a class="tlink" href="${jobLink}" target="_blank" rel="noopener"><span class="job-num">${esc(r.jobId)}</span> ↗</a>` : `<span class="job-num">${esc(r.jobId||'—')}</span>`;
       const cityLine = r.city ? `<div class="reply-meta">${esc(r.city)}</div>` : '';
       html += `<tr>
+        <td class="col-check"><input type="checkbox" class="row-check" data-cid="${esc(r.customerId)}" onchange="updateSel()" /></td>
         <td><div class="customer-name">${esc(r.customerName||'—')}</div>${cityLine}</td>
         <td>${jobCell}<div class="reply-meta">${esc(r.jobTitle||'')}</div></td>
         <td><span class="badge ${scls}">${slbl}</span>${b==='human'?' <span class="flag">●</span>':''}</td>
@@ -361,8 +383,46 @@
       </tr>`;
     }
     document.getElementById('table-container').innerHTML = html + `</tbody></table>`;
+    updateSel();
   }
 
+  // ─────────────────────────────────────
+  //  SELECTION + MARK DONE
+  // ─────────────────────────────────────
+  function selectedCids() { return [...document.querySelectorAll('.row-check:checked')].map(c => c.dataset.cid); }
+  function updateSel() {
+    const boxes = [...document.querySelectorAll('.row-check')];
+    const checked = boxes.filter(c => c.checked);
+    boxes.forEach(c => c.closest('tr').classList.toggle('sel', c.checked));
+    const n = checked.length;
+    document.getElementById('sel-label').textContent = `${n} selected`;
+    document.getElementById('sel-count').textContent = n;
+    document.getElementById('done-btn').disabled = n === 0;
+    const all = document.getElementById('selectAll');
+    if (all) { all.checked = boxes.length > 0 && n === boxes.length; all.indeterminate = n > 0 && n < boxes.length; }
+  }
+  function toggleSelectAll(cb) { document.querySelectorAll('.row-check').forEach(c => { c.checked = cb.checked; }); updateSel(); }
+
+  function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
+
+  async function markDone() {
+    const cids = selectedCids();
+    if (!cids.length) return;
+    if (RESOLVE_WEBHOOK.startsWith('PASTE_')) { toast('Resolve webhook not wired yet'); return; }
+    if (!confirm(`Mark ${cids.length} customer${cids.length !== 1 ? 's' : ''} as done? They'll drop off the active list.`)) return;
+    const btn = document.getElementById('done-btn'); btn.disabled = true;
+    try {
+      for (const cid of cids) {   // one flat POST per customer → webhook appends a human_resolved row
+        const res = await fetch(RESOLVE_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: cid }) });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      }
+      toast(`✓ Marked ${cids.length} done — refreshing…`);
+      setTimeout(loadData, 2500);   // give the appends a moment to land in the sheet
+    } catch (err) {
+      toast('⚠️ Could not mark done — ' + err.message);
+      btn.disabled = false;
+    }
+  }
 </script>
 </body>
 </html>
