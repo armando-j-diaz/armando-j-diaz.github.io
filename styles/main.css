@@ -261,6 +261,22 @@ body::after {
   background: var(--accent-warm);
 }
 
+.nav__link--apps {
+  color: var(--accent-cream);
+  border: 1px solid var(--accent-warm);
+  border-radius: 4px;
+  padding: 6px 12px;
+}
+
+.nav__link--apps::after {
+  display: none;
+}
+
+.nav__link--apps:hover {
+  background: var(--glow-warm);
+  color: var(--accent-cream);
+}
+
 /* Mobile hamburger */
 .nav__toggle {
   display: none;
