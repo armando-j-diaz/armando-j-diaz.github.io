@@ -1,251 +1,415 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Armando Diaz — Information Systems Student & Data Engineer</title>
-  <meta name="description"
-    content="Personal site of Armando Diaz — Information Systems student at the University of Florida, building enterprise data systems and cloud pipelines.">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>COI Request — JET Mobile Engineering</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&display=swap"
-    rel="stylesheet">
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f4f6f9;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 56px 16px 48px;
+    }
 
-  <!-- Styles -->
-  <link rel="stylesheet" href="styles/main.css">
-  <link rel="stylesheet" href="styles/home.css">
+    .site-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #1e293b;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 100;
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.15);
+    }
+    .site-header-brand {
+      font-size: 13px;
+      font-weight: 700;
+      color: #e2e8f0;
+      letter-spacing: 0.02em;
+    }
+    .site-header-apps {
+      color: #e2e8f0;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 6px;
+      background: #334155;
+      transition: background 0.15s;
+    }
+    .site-header-apps:hover { background: #475569; }
+
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px rgba(0, 0, 0, 0.10);
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 560px;
+    }
+
+    .card-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 6px;
+    }
+
+    .card-subtitle {
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 28px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #9ca3af;
+      margin: 24px 0 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 5px;
+    }
+
+    .field label .optional {
+      font-weight: 400;
+      color: #9ca3af;
+      font-size: 12px;
+      margin-left: 4px;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 14px;
+      color: #111827;
+      background: #ffffff;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .field input::placeholder { color: #9ca3af; }
+
+    .field input:focus,
+    .field select:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    .field input.error,
+    .field select.error {
+      border-color: #ef4444;
+    }
+
+    .field-error {
+      font-size: 12px;
+      color: #ef4444;
+      margin-top: 4px;
+      display: none;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .btn-submit {
+      width: 100%;
+      margin-top: 28px;
+      padding: 13px;
+      background: #2563eb;
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn-submit:hover:not(:disabled) { background: #1d4ed8; }
+    .btn-submit:active:not(:disabled) { transform: scale(0.99); }
+    .btn-submit:disabled { background: #93c5fd; cursor: not-allowed; }
+
+    /* Status messages */
+    .status {
+      display: none;
+      margin-top: 20px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    .status.success {
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+
+    .status.error {
+      background: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    @media (max-width: 480px) {
+      .card { padding: 28px 20px; }
+      .field-row { grid-template-columns: 1fr; gap: 0; }
+    }
+  </style>
 </head>
-
 <body>
 
-  <!-- ============ NAVIGATION ============ -->
-  <nav class="nav" role="navigation" aria-label="Main navigation">
-    <a href="index.html" class="nav__name">Armando Diaz</a>
+<header class="site-header">
+  <span class="site-header-brand">JET Mobile Engineering</span>
+  <a class="site-header-apps" href="/apps.html">Apps</a>
+</header>
 
-    <button class="nav__toggle" aria-label="Toggle navigation" aria-expanded="false">
-      <span class="nav__toggle-line"></span>
-      <span class="nav__toggle-line"></span>
-      <span class="nav__toggle-line"></span>
-    </button>
+<div class="card">
+  <h1 class="card-title">COI Request</h1>
+  <p class="card-subtitle">Send a Certificate of Insurance request to a condo</p>
 
-    <ul class="nav__links">
-      <li><a href="about.html" class="nav__link">About</a></li>
-      <li><a href="projects.html" class="nav__link">Projects</a></li>
-      <li><a href="thoughts.html" class="nav__link">Thoughts</a></li>
-      <li><a href="contact.html" class="nav__link">Contact</a></li>
-    </ul>
-  </nav>
+  <form id="coi-form" novalidate>
 
-  <!-- ============ HERO ============ -->
-  <section class="hero">
-    <h1 class="sr-only">Armando Diaz — Information Systems Student & Data Engineer</h1>
-    <div class="hero__content">
-      <div class="hero__typewriter-container">
-        <div class="hero__typewriter-line">
-          <span class="hero__typewriter-text" id="typewriter"></span>
-          <span class="hero__cursor" id="cursor"></span>
-        </div>
-        <div class="hero__name-line" id="nameLine" style="opacity: 0;">
-          <span class="hero__name" id="heroName"></span>
-          <span class="hero__cursor hero__cursor--name" id="cursorName" style="display: none;"></span>
-        </div>
-        <div class="hero__subtitle-line" id="subtitleLine" style="opacity: 0;">
-          <span class="hero__subtitle" id="heroSubtitle"></span>
-          <span class="hero__cursor hero__cursor--subtitle" id="cursorSubtitle" style="display: none;"></span>
-        </div>
+    <!-- CONDO INFO -->
+    <div class="section-label">Condo / Building</div>
+
+    <div class="field">
+      <label for="condo_name">Condo / Building Name</label>
+      <input type="text" id="condo_name" name="condo_name"
+             placeholder="e.g. Pompano Towers" />
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="condo_email">Management Email</label>
+        <input type="email" id="condo_email" name="condo_email"
+               placeholder="e.g. mgmt@pompano.com" />
+        <div class="field-error" id="condo_email-error">Management email is required.</div>
       </div>
-
-      <div class="hero__buttons" id="heroButtons">
-        <a href="about.html" class="btn">About Me</a>
-        <a href="projects.html" class="btn">Projects</a>
-        <a href="thoughts.html" class="btn">My Thoughts</a>
+      <div class="field">
+        <label for="condo_phone">Management Phone <span class="optional">(optional)</span></label>
+        <input type="tel" id="condo_phone" name="condo_phone"
+               placeholder="e.g. 305-555-0100" />
       </div>
     </div>
 
-    <div class="hero__scroll" id="heroScroll">
-      <span class="hero__scroll-text">scroll</span>
-      <span class="hero__scroll-arrow">&darr;</span>
+    <!-- CUSTOMER INFO -->
+    <div class="section-label">Customer</div>
+
+    <div class="field">
+      <label for="customer_name">Customer Name</label>
+      <input type="text" id="customer_name" name="customer_name"
+             placeholder="e.g. Lori Bardol" />
+      <div class="field-error" id="customer_name-error">Customer name is required.</div>
     </div>
 
-    <!-- Hero background gradient -->
-    <div class="hero__bg-gradient" aria-hidden="true"></div>
-  </section>
-
-  <!-- ============ WHAT I DO STRIP ============ -->
-  <section class="strip section--alt">
-    <div class="strip__inner">
-      <p class="strip__statement animate-on-scroll">
-        I turn messy business data into systems you can actually trust.
-      </p>
-    </div>
-  </section>
-
-  <!-- ============ FEATURED WORK ============ -->
-  <section class="section featured-work">
-    <div class="section__inner">
-      <div class="section__header animate-on-scroll">
-        <span class="section__ghost-number">01</span>
-        <h2 class="section__title">Selected Work</h2>
+    <div class="field-row">
+      <div class="field">
+        <label for="customer_email">Customer Email <span class="optional">(optional)</span></label>
+        <input type="email" id="customer_email" name="customer_email"
+               placeholder="e.g. lori@email.com" />
+        <div class="field-error" id="customer_email-error">Enter a valid email.</div>
       </div>
-
-      <div class="featured-work__grid" data-stagger-group>
-        <!-- Card 1 — spans wide -->
-        <a href="projects.html" class="card featured-work__card animate-on-scroll">
-          <span class="card__category">Data Engineering</span>
-          <h3 class="card__title">Live Cloud Data Pipeline</h3>
-          <p class="card__description">Automated cloud pipeline using Azure Functions for daily API extractions,
-            transforming nested data into clean, structured formats for market analysis.</p>
-          <div class="card__tags">
-            <span class="tag">Azure</span>
-            <span class="tag">Python</span>
-            <span class="tag">SQL</span>
-            <span class="tag">Blob Storage</span>
-          </div>
-        </a>
-
-        <!-- Card 2 -->
-        <a href="projects.html" class="card featured-work__card animate-on-scroll">
-          <span class="card__category">Data Engineering</span>
-          <h3 class="card__title">Enterprise Data Warehouse</h3>
-          <p class="card__description">Full data warehousing strategy ingesting raw CRM and ERP data into an optimized
-            Star Schema, improving report load times by 90%.</p>
-          <div class="card__tags">
-            <span class="tag">SQL Server</span>
-            <span class="tag">T-SQL</span>
-            <span class="tag">Star Schema</span>
-            <span class="tag">ETL</span>
-          </div>
-        </a>
-
-        <!-- Card 3 -->
-        <a href="projects.html" class="card featured-work__card animate-on-scroll">
-          <span class="card__category">Sales</span>
-          <h3 class="card__title">Sales Intern — Elite Pro Painting</h3>
-          <p class="card__description">Where I learned that great data systems start with understanding what a business
-            actually needs — from the ground up.</p>
-          <div class="card__tags">
-            <span class="tag">Sales</span>
-            <span class="tag">CRM</span>
-            <span class="tag">Lead Management</span>
-            <span class="tag">Cold Calling</span>
-          </div>
-        </a>
-      </div>
-
-      <div class="featured-work__footer animate-on-scroll">
-        <a href="projects.html" class="link-arrow">View All Projects</a>
+      <div class="field">
+        <label for="customer_phone">Customer Phone <span class="optional">(optional)</span></label>
+        <input type="tel" id="customer_phone" name="customer_phone"
+               placeholder="e.g. 305-555-0199" />
       </div>
     </div>
-  </section>
 
-  <!-- ============ TOOLS TICKER ============ -->
-  <section class="ticker" aria-hidden="true">
-    <div class="ticker__track">
-      <span class="ticker__item">SQL Server</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">T-SQL</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Azure</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Python</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Power BI</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Tableau</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Excel</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Git</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">GitHub</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Lua</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">ETL</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Star Schema</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Data Warehousing</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Blob Storage</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Azure Functions</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Sales Funnels</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Lead Management</span>
-      <span class="ticker__sep">&middot;</span>
-      <!-- Duplicate for seamless loop -->
-      <span class="ticker__item">SQL Server</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">T-SQL</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Azure</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Python</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Power BI</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Tableau</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Excel</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Git</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">GitHub</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Lua</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">ETL</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Star Schema</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Data Warehousing</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Blob Storage</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Azure Functions</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Sales Funnels</span>
-      <span class="ticker__sep">&middot;</span>
-      <span class="ticker__item">Lead Management</span>
-      <span class="ticker__sep">&middot;</span>
+    <div class="field">
+      <label for="customer_address">Customer Address</label>
+      <input type="text" id="customer_address" name="customer_address"
+             placeholder="e.g. 3311 SE 6th St, Pompano Beach, FL 33062" />
+      <div class="field-error" id="customer_address-error">Customer address is required.</div>
     </div>
-  </section>
 
-  <!-- ============ FOOTER ============ -->
-  <footer class="footer">
-    <div class="footer__inner">
-      <span class="footer__name">Armando Diaz</span>
-      <span class="footer__copy">&copy; 2026</span>
-      <div class="footer__socials">
-        <a href="https://github.com/armando-j-diaz" class="footer__social-link" target="_blank" rel="noopener"
-          aria-label="GitHub profile">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-          </svg>
-          GitHub
-        </a>
-        <a href="https://linkedin.com/in/armando-j-diaz" class="footer__social-link" target="_blank" rel="noopener"
-          aria-label="LinkedIn profile">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-          </svg>
-          LinkedIn
-        </a>
+    <!-- JOB INFO -->
+    <div class="section-label">Job Details</div>
+
+    <div class="field">
+      <label for="job_number">AHS Job Number</label>
+      <input type="text" id="job_number" name="job_number"
+             placeholder="e.g. 27185439" />
+      <div class="field-error" id="job_number-error">AHS Job Number is required.</div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="dispatch_job_id">Dispatch Job URL ID <span class="optional">(optional)</span></label>
+        <input type="text" id="dispatch_job_id" name="dispatch_job_id"
+               placeholder="e.g. 8675309" />
+      </div>
+      <div class="field">
+        <label for="item_type">Service Type <span class="optional">(optional)</span></label>
+        <input type="text" id="item_type" name="item_type"
+               placeholder="HVAC Service" value="HVAC Service" />
       </div>
     </div>
-  </footer>
 
-  <!-- Scripts -->
-  <script src="js/main.js"></script>
-  <script src="js/home.js"></script>
+    <button type="submit" class="btn-submit" id="submit-btn">Send COI Request</button>
+
+    <div class="status success" id="status-success">
+      COI request sent successfully! You'll receive a confirmation shortly.
+    </div>
+    <div class="status error" id="status-error">
+      Something went wrong. Please try again or contact support.
+    </div>
+
+  </form>
+</div>
+
+<script>
+  const WEBHOOK_URL = 'https://hook.us2.make.com/1oapw7giy2v88jake5kbqrov2jnhchow';
+
+  const form    = document.getElementById('coi-form');
+  const btn     = document.getElementById('submit-btn');
+  const success = document.getElementById('status-success');
+  const errBox  = document.getElementById('status-error');
+
+  let submitting = false;
+
+  // ── validation rules ──────────────────────────────────────────────────────
+  const rules = [
+    {
+      id: 'condo_email',
+      test: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
+      msg: 'Management email is required.',
+    },
+    {
+      id: 'customer_name',
+      test: v => v.trim().length > 0,
+      msg: 'Customer name is required.',
+    },
+    {
+      id: 'customer_email',
+      test: v => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
+      msg: 'Enter a valid email.',
+    },
+    {
+      id: 'customer_address',
+      test: v => v.trim().length > 0,
+      msg: 'Customer address is required.',
+    },
+    {
+      id: 'job_number',
+      test: v => v.trim().length > 0,
+      msg: 'AHS Job Number is required.',
+    },
+  ];
+
+  function validate() {
+    let valid = true;
+    rules.forEach(({ id, test, msg }) => {
+      const input = document.getElementById(id);
+      const errEl = document.getElementById(id + '-error');
+      const val   = input.value.trim();
+      if (!test(val)) {
+        input.classList.add('error');
+        if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+        valid = false;
+      } else {
+        input.classList.remove('error');
+        if (errEl) errEl.style.display = 'none';
+      }
+    });
+    return valid;
+  }
+
+  // Clear error state on input
+  rules.forEach(({ id }) => {
+    const input = document.getElementById(id);
+    if (input) input.addEventListener('input', () => {
+      input.classList.remove('error');
+      const errEl = document.getElementById(id + '-error');
+      if (errEl) errEl.style.display = 'none';
+    });
+  });
+
+  // ── submit ────────────────────────────────────────────────────────────────
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (submitting) return;
+
+    success.style.display = 'none';
+    errBox.style.display  = 'none';
+
+    if (!validate()) return;
+
+    submitting      = true;
+    btn.disabled    = true;
+    btn.textContent = 'Sending…';
+
+    const payload = {
+      source:           'Website',
+      item_type:        document.getElementById('item_type').value.trim() || 'HVAC Service',
+      job_number:       document.getElementById('job_number').value.trim(),
+      dispatch_job_id:  document.getElementById('dispatch_job_id').value.trim(),
+      condo_name:       document.getElementById('condo_name').value.trim(),
+      condo_email:      document.getElementById('condo_email').value.trim(),
+      condo_phone:      document.getElementById('condo_phone').value.trim(),
+      customer_name:    document.getElementById('customer_name').value.trim(),
+      customer_email:   document.getElementById('customer_email').value.trim(),
+      customer_phone:   document.getElementById('customer_phone').value.trim(),
+      customer_address: document.getElementById('customer_address').value.trim(),
+    };
+
+    try {
+      const res = await fetch(WEBHOOK_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        form.reset();
+        document.getElementById('item_type').value = 'HVAC Service';
+        success.style.display = 'block';
+        success.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } else {
+        throw new Error('HTTP ' + res.status);
+      }
+    } catch (err) {
+      console.error('COI form error:', err);
+      errBox.style.display = 'block';
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = 'Send COI Request';
+      submitting      = false;
+    }
+  });
+</script>
+
 </body>
-
 </html>

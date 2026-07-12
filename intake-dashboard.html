@@ -224,7 +224,7 @@
       <option value="processing jotform">Processing Jotform</option>
       <option value="processing database confirmation">Processing Database Confirmation</option>
     </select>
-    <button type="button" class="filter-btn" id="recent-days-filter" onclick="toggleRecentDaysFilter()" title="Show only forms sent or accepted today or yesterday">
+    <button type="button" class="filter-btn active" id="recent-days-filter" onclick="toggleRecentDaysFilter()" title="Show only forms sent or accepted today or yesterday" aria-pressed="true">
       Today + Yesterday
     </button>
     <span class="record-count" id="record-count"></span>
@@ -272,7 +272,7 @@
   let allData      = [];
   let filteredData = [];
   let refreshTimer = null;
-  let recentDaysOn = false;
+  let recentDaysOn = true;
 
   // ─────────────────────────────────────
   //  AUTH
