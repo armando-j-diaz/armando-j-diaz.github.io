@@ -45,6 +45,9 @@
     .s-happy  .num { color: #166534; }
     .s-sent   .num { color: #7c3aed; }
     .s-human  .num { color: #b91c1c; }
+    .abtest { padding: 0 24px 6px; font-size: 12px; color: #64748b; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .abtest .ab { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 12px; }
+    .abtest .ab b { color: #1e293b; }
 
     /* ── CONTROLS ── */
     .controls { padding: 14px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -134,6 +137,7 @@
   </header>
 
   <div class="funnel" id="funnel"></div>
+  <div class="abtest" id="abtest"></div>
 
   <div class="controls">
     <div class="search-wrap">
@@ -173,7 +177,7 @@
   // A timestamp · B event · C stage · D customerId · E jobId · F jobLink · G workOrder
   // H customerName · I city · J serviceType · K sentiment · L replyText · M replyWords · N completedAt
   const COL = { TS:0, EVENT:1, STAGE:2, CUSTOMER_ID:3, JOB_ID:4, JOB_LINK:5, WO:6,
-                NAME:7, CITY:8, SERVICE:9, SENTIMENT:10, REPLY:11, REPLY_WORDS:12, COMPLETED:13 };
+                NAME:7, CITY:8, SERVICE:9, SENTIMENT:10, REPLY:11, REPLY_WORDS:12, COMPLETED:13, VARIANT:14 };
 
   const STAGES = [
     { key: 'asked',   cls: 's-asked',   label: 'Asked',       sub: 'awaiting reply' },
@@ -242,7 +246,7 @@
       allData = collapse(rows);
       const t = new Date();
       document.getElementById('last-updated').textContent = 'Updated ' + t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      renderFunnel(); applyFilters();
+      renderFunnel(); renderAB(); applyFilters();
     } catch (err) {
       document.getElementById('last-updated').textContent = 'Error — check feed';
       document.getElementById('table-container').innerHTML = `<div class="error-state">⚠️ Could not load data.<br><small>${err.message}</small></div>`;
@@ -264,7 +268,7 @@
       set('stage', r[COL.STAGE]); set('jobId', r[COL.JOB_ID]); set('jobLink', r[COL.JOB_LINK]);
       set('jobTitle', r[COL.WO]); set('customerName', r[COL.NAME]); set('city', r[COL.CITY]);
       set('serviceType', r[COL.SERVICE]); set('sentiment', r[COL.SENTIMENT]);
-      set('completedAt', r[COL.COMPLETED]);
+      set('completedAt', r[COL.COMPLETED]); set('variant', r[COL.VARIANT]);
       if (r[COL.REPLY]) { rec.replyText = stripRelayWrapper(r[COL.REPLY]); rec.replyAt = r[COL.TS]; }
       if (ev === 'nudge_sent' && !rec.askedAt) rec.askedAt = r[COL.TS];
       if (ev === 'review_link_sent') rec.reviewSentAt = r[COL.TS];
@@ -343,6 +347,13 @@
     const c = { asked:0, replied:0, happy:0, sent:0, human:0 };
     allData.forEach(r => { const b = bucketOf(r); if (b in c) c[b]++; });
     return c;
+  }
+  function renderAB() {   // nudge A/B readout: asked vs replied per variant
+    const el = document.getElementById('abtest'); if (!el) return;
+    const g = {};
+    allData.forEach(r => { const v = (r.variant || '').toUpperCase(); if (v !== 'A' && v !== 'B') return; (g[v] = g[v] || { asked: 0, replied: 0 }); g[v].asked++; if (r.replyText) g[v].replied++; });
+    const parts = ['A', 'B'].filter(v => g[v]).map(v => { const { asked, replied } = g[v]; const rate = asked ? Math.round(replied / asked * 100) : 0; return `<span class="ab"><b>Nudge ${v}</b> ${v === 'A' ? '(single)' : '(two-msg)'} · ${asked} asked · ${replied} replied · <b>${rate}%</b></span>`; });
+    el.innerHTML = parts.length ? `<span style="font-weight:600;">A/B nudge test:</span>` + parts.join('') : '';
   }
   function renderFunnel() {
     const c = counts();
