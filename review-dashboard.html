@@ -290,7 +290,7 @@
   function bucketOf(r) {
     const s = (r.stage || '').toLowerCase();
     if (r.resolvedAt || s === 'resolved') return 'resolved';   // human marked done
-    if (s === 'escalated' || s === 'needs_human') return 'human';
+    if (s.startsWith('escalated') || s === 'needs_human') return 'human';   // covers escalated + escalated_urgent (v2)
     if (r.reviewSentAt || s === 'closed') return 'sent';
     if ((r.sentiment || '').toLowerCase() === 'happy') return 'happy';
     if (r.replyText) return 'replied';
