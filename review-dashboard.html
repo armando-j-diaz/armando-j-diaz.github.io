@@ -92,6 +92,7 @@
     .badge-purple { background: #ede9fe; color: #6d28d9; }
     .badge-slate  { background: #e2e8f0; color: #334155; }
     .badge-red    { background: #fee2e2; color: #991b1b; }
+    .badge-orange { background: #fef3c7; color: #b45309; }
     .badge-yellow { background: #fef9c3; color: #854d0e; }
     .flag { color: #b91c1c; font-weight: 700; }
     .len-long { color: #b45309; font-weight: 700; }
@@ -383,19 +384,19 @@
   function wordCount(t){ return t ? t.trim().split(/\s+/).filter(Boolean).length : 0; }
   function esc(t){ return (t==null?'':String(t)).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
   function fmt(d){ if(!d) return '—'; const x=new Date(d); return isNaN(x)?esc(d):x.toLocaleDateString([], {month:'short',day:'numeric'})+' '+x.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
-  const STAGE_BADGE = { asked:['badge-gray','Asked'], replied:['badge-blue','Replied'], happy:['badge-green','Happy'], sent:['badge-purple','Review link sent'], resolved:['badge-slate','Done'], human:['badge-red','Needs human'] };
+  const STAGE_BADGE = { asked:['badge-gray','Asked'], replied:['badge-blue','Replied'], happy:['badge-green','Happy'], sent:['badge-purple','Review link sent'], resolved:['badge-slate','Done'], human:['badge-red','Needs human'], paused:['badge-orange','Paused / NCC'] };
   const SENTIMENT_BADGE = { happy:['badge-green','Happy'], unhappy:['badge-red','Unhappy'], unclear:['badge-yellow','Unclear'] };
 
   function renderTable() {
     document.getElementById('record-count').textContent = `${filteredData.length} of ${allData.length}`;
     if (!filteredData.length) { document.getElementById('table-container').innerHTML = `<div class="empty-state">No matching records.</div>`; updateSel(); return; }
-    const order = { human:0, happy:1, replied:2, sent:3, resolved:4, asked:5 };
+    const order = { human:0, paused:1, happy:2, replied:3, sent:4, resolved:5, asked:6 };
     const rows = [...filteredData].sort((a,b) => (order[bucketOf(a)]-order[bucketOf(b)]) || (new Date(b.replyAt||b.askedAt||0)-new Date(a.replyAt||a.askedAt||0)));
     let html = `<table><thead><tr>
       <th class="col-check"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="Select all shown" /></th>
       <th>Customer</th><th>Job / WO</th><th>Stage</th><th>Reply</th><th>Sentiment</th><th>Asked</th></tr></thead><tbody>`;
     for (const r of rows) {
-      const b = bucketOf(r); const [scls, slbl] = STAGE_BADGE[b];
+      const b = bucketOf(r); const [scls, slbl] = STAGE_BADGE[b] || ['badge-gray', b];
       const wc = wordCount(r.replyText); const lenCls = wc >= 25 ? 'len-long' : (wc ? 'len-ok' : '');
       const sb = SENTIMENT_BADGE[(r.sentiment||'').toLowerCase()];
       const jobLink = r.jobLink || (/^\d+$/.test(String(r.jobId||'')) ? 'https://work.dispatch.me/job/' + r.jobId : '');
