@@ -127,7 +127,6 @@
     tr:hover td { background: #f8fafc; }
 
     .job-num       { font-weight: 700; font-size: 13px; color: #1e293b; }
-    a.tlink .job-num { color: #2563eb; }
     .customer-name { font-weight: 600; }
 
     /* ── BADGES ── */
@@ -493,15 +492,6 @@
     return `<span class="followup-yes">✓ ${val.trim()}</span>`;
   }
 
-  // Job # → Dispatch job page (same pattern as review-dashboard)
-  function jobCell(val) {
-    const job = (val || '').trim();
-    if (!job) return '<span class="job-num">—</span>';
-    if (!/^\d+$/.test(job)) return `<span class="job-num">${safe(job)}</span>`;
-    const href = 'https://work.dispatch.me/job/' + job;
-    return `<a class="tlink" href="${href}" target="_blank" rel="noopener"><span class="job-num">${safe(job)}</span> ↗</a>`;
-  }
-
   function jotformLink(val) {
     if (!val || !val.trim()) return '—';
     return `<a class="tlink" href="${val.trim()}" target="_blank" rel="noopener">↗ Open</a>`;
@@ -554,7 +544,7 @@
 
     for (const r of filteredData) {
       html += `<tr>
-        <td>${jobCell(r[COL.JOB])}</td>
+        <td><span class="job-num">${safe(r[COL.JOB])}</span></td>
         <td><span class="customer-name">${safe(r[COL.CUSTOMER])}</span></td>
         <td>${phoneLink(r[COL.PHONE])}</td>
         <td style="font-size:13px;">${safe(r[COL.ADDRESS])}</td>
