@@ -138,10 +138,11 @@
   </header>
 
   <div class="funnel" id="funnel"></div>
-  <div style="font-size:12px;color:#94a3b8;margin:4px 2px 10px;">📞 <b>Paused / NCC</b>: call the customer through <b>Housecall Pro</b> (305 line) · 💬 All other lanes: the conversation lives in <b>Dispatch</b>, reply there.</div>
   <div class="abtest" id="abtest"></div>
 
   <div class="controls">
+    <button type="button" class="filter-btn" id="visit-single" onclick="setVisit('single')" title="Never-paused jobs. All communication happens in the Dispatch conversation.">1 Visit <span style="font-weight:400;">(Dispatch.me)</span></button>
+    <button type="button" class="filter-btn" id="visit-multi" onclick="setVisit('multi')" title="Paused / NCC jobs. Call the customer through Housecall Pro (305 line). Never auto-texted.">Multi-Visit <span style="font-weight:400;">(Housecall Pro)</span></button>
     <div class="search-wrap">
       <span class="search-icon">🔍</span>
       <input class="search-input" id="search-box" type="text" placeholder="Search name, job #, reply…" oninput="applyFilters()" />
@@ -194,7 +195,7 @@
   //  STATE
   // ─────────────────────────────────────
   let allData = [], filteredData = [], refreshTimer = null;
-  let activeStage = null, humanOnly = false, activeOnly = true;
+  let activeStage = null, humanOnly = false, activeOnly = true, visitFilter = null;
 
   // ─────────────────────────────────────
   //  AUTH
@@ -336,12 +337,20 @@
     filteredData = allData.filter(r => {
       const b = bucketOf(r);
       const hay = [r.customerName, r.jobTitle, r.jobId, r.replyText, r.city].join(' ').toLowerCase();
+      const visitOk = !visitFilter || (visitFilter === 'multi' ? b === 'paused' : b !== 'paused');
       return (!q || hay.includes(q))
         && (!activeStage || b === activeStage)
         && (!humanOnly || b === 'human')
+        && visitOk
         && (!capActive || isActive(r));
     });
     renderTable();
+  }
+  function setVisit(v) {
+    visitFilter = (visitFilter === v) ? null : v;
+    document.getElementById('visit-single').classList.toggle('active', visitFilter === 'single');
+    document.getElementById('visit-multi').classList.toggle('active', visitFilter === 'multi');
+    applyFilters();
   }
 
   // ─────────────────────────────────────
