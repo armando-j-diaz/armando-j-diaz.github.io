@@ -45,6 +45,7 @@
     .s-happy  .num { color: #166534; }
     .s-sent   .num { color: #7c3aed; }
     .s-human  .num { color: #b91c1c; }
+    .s-paused .num { color: #b45309; }
     .abtest { padding: 0 24px 6px; font-size: 12px; color: #64748b; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
     .abtest .ab { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 12px; }
     .abtest .ab b { color: #1e293b; }
@@ -185,6 +186,7 @@
     { key: 'happy',   cls: 's-happy',   label: 'Happy',       sub: 'positive signal' },
     { key: 'sent',    cls: 's-sent',    label: 'Review link', sub: 'portal link sent' },
     { key: 'human',   cls: 's-human',   label: 'Needs human', sub: 'escalated / unclear / on-hold' },
+    { key: 'paused',  cls: 's-paused',  label: 'Paused / NCC', sub: 'call first, never auto-texted' },
   ];
 
   // ─────────────────────────────────────
@@ -273,9 +275,9 @@
       if (ev === 'nudge_sent') rec.askedAt = r[COL.TS];   // latest nudge wins, matching the latest-job collapse
       if (ev === 'review_link_sent') rec.reviewSentAt = r[COL.TS];
       if (ev === 'human_resolved') rec.resolvedAt = r[COL.TS];
+      if (ev === 'nudge_skipped_paused') rec.pausedSkipAt = r[COL.TS];
     }
-    // paused_skip rows were never asked → exclude from the funnel
-    return Object.values(byCust).filter(r => (r.stage || '') !== 'paused_skip');
+    return Object.values(byCust);
   }
 
   // Older sheet rows stored the full Dispatch relay email; new rows arrive pre-cleaned by Msg-2.
@@ -291,6 +293,7 @@
     const s = (r.stage || '').toLowerCase();
     if (r.resolvedAt || s === 'resolved') return 'resolved';   // human marked done
     if (s.startsWith('escalated') || s === 'needs_human') return 'human';   // covers escalated + escalated_urgent (v2)
+    if (s === 'paused_skip') return 'paused';   // NCC pipeline: human calls first, system never texts them
     if (r.reviewSentAt || s === 'closed') return 'sent';
     if ((r.sentiment || '').toLowerCase() === 'happy') return 'happy';
     if (r.replyText) return 'replied';
@@ -300,7 +303,7 @@
   const TERMINAL = new Set(['sent', 'resolved']);
   function isActive(r) {
     const b = bucketOf(r);
-    if (b === 'human') return true;             // unresolved needs-human always stays active (even past 5 days)
+    if (b === 'human' || b === 'paused') return true;   // needs-human + paused/NCC always stay active until resolved
     if (TERMINAL.has(b)) return false;          // happy/closed + resolved → inactive
     const ref = r.completedAt || r.askedAt || r.replyAt;   // asked/replied → active only if recent
     if (!ref) return true;
