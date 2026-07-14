@@ -392,7 +392,12 @@
     if (!filteredData.length) { document.getElementById('table-container').innerHTML = `<div class="empty-state">No matching records.</div>`; updateSel(); return; }
     const order = { human:0, paused:1, happy:2, replied:3, sent:4, resolved:5, asked:6 };
     const rows = [...filteredData].sort((a,b) => (order[bucketOf(a)]-order[bucketOf(b)]) || (new Date(b.replyAt||b.askedAt||0)-new Date(a.replyAt||a.askedAt||0)));
-    let html = `<table><thead><tr>
+    const hcpView = visitFilter === 'multi';
+    let html = hcpView
+      ? `<table><thead><tr>
+      <th class="col-check"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="Select all shown" /></th>
+      <th>Customer</th><th>Job / WO</th><th>Stage</th><th>Completed</th></tr></thead><tbody>`
+      : `<table><thead><tr>
       <th class="col-check"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="Select all shown" /></th>
       <th>Customer</th><th>Job / WO</th><th>Stage</th><th>Reply</th><th>Sentiment</th><th>Asked</th></tr></thead><tbody>`;
     for (const r of rows) {
@@ -407,9 +412,11 @@
         <td><div class="customer-name">${esc(r.customerName||'—')}</div>${cityLine}</td>
         <td>${jobCell}<div class="reply-meta">${esc(r.jobTitle||'')}</div></td>
         <td><span class="badge ${scls}">${slbl}</span>${b==='human'?' <span class="flag">●</span>':''}</td>
-        <td>${ b==='paused' ? `<span style="font-size:12px;color:#64748b;">Completed ${fmt(r.completedAt)} · handle via Housecall Pro</span>` : (r.replyText ? `<div class="reply-text">${esc(r.replyText)}</div><div class="reply-meta"><span class="${lenCls}">${wc} words</span>${wc>=25?' · long — nudge to portal':''}</div>` : '<span style="color:#cbd5e1;">— no reply —</span>') }</td>
+        ${ hcpView
+          ? `<td><span style="white-space:nowrap;font-size:12px;color:#475569;">${fmt(r.completedAt)}</span></td>`
+          : `<td>${ b==='paused' ? `<span style="font-size:12px;color:#64748b;">Completed ${fmt(r.completedAt)} · handle via Housecall Pro</span>` : (r.replyText ? `<div class="reply-text">${esc(r.replyText)}</div><div class="reply-meta"><span class="${lenCls}">${wc} words</span>${wc>=25?' · long — nudge to portal':''}</div>` : '<span style="color:#cbd5e1;">— no reply —</span>') }</td>
         <td>${ b==='paused' ? '' : (sb ? `<span class="badge ${sb[0]}">${sb[1]}</span>` : '—') }</td>
-        <td>${ b==='paused' ? '' : `<span style="white-space:nowrap;font-size:12px;color:#475569;">${fmt(r.askedAt)}</span>` }</td>
+        <td>${ b==='paused' ? '' : `<span style="white-space:nowrap;font-size:12px;color:#475569;">${fmt(r.askedAt)}</span>` }</td>` }
       </tr>`;
     }
     document.getElementById('table-container').innerHTML = html + `</tbody></table>`;
