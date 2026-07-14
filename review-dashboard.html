@@ -306,7 +306,7 @@
   const TERMINAL = new Set(['sent', 'resolved']);
   function isActive(r) {
     const b = bucketOf(r);
-    if (b === 'human' || b === 'paused') return true;   // needs-human + paused/NCC always stay active until resolved
+    if (b === 'human') return true;             // unresolved needs-human always stays active
     if (TERMINAL.has(b)) return false;          // happy/closed + resolved → inactive
     const ref = r.completedAt || r.askedAt || r.replyAt;   // asked/replied → active only if recent
     if (!ref) return true;
@@ -341,7 +341,7 @@
       const visitOk = !visitFilter || (visitFilter === 'multi' ? b === 'paused' : b !== 'paused');
       return (!q || hay.includes(q))
         && (!activeStage || b === activeStage)
-        && (!humanOnly || b === 'human')
+        && (!humanOnly || b === 'human' || b === 'paused')
         && visitOk
         && (!capActive || isActive(r));
     });
@@ -407,9 +407,9 @@
         <td><div class="customer-name">${esc(r.customerName||'—')}</div>${cityLine}</td>
         <td>${jobCell}<div class="reply-meta">${esc(r.jobTitle||'')}</div></td>
         <td><span class="badge ${scls}">${slbl}</span>${b==='human'?' <span class="flag">●</span>':''}</td>
-        <td>${ r.replyText ? `<div class="reply-text">${esc(r.replyText)}</div><div class="reply-meta"><span class="${lenCls}">${wc} words</span>${wc>=25?' · long — nudge to portal':''}</div>` : '<span style="color:#cbd5e1;">— no reply —</span>' }</td>
-        <td>${ sb ? `<span class="badge ${sb[0]}">${sb[1]}</span>` : '—' }</td>
-        <td><span style="white-space:nowrap;font-size:12px;color:#475569;">${fmt(r.askedAt)}</span></td>
+        <td>${ b==='paused' ? `<span style="font-size:12px;color:#64748b;">Completed ${fmt(r.completedAt)} · handle via Housecall Pro</span>` : (r.replyText ? `<div class="reply-text">${esc(r.replyText)}</div><div class="reply-meta"><span class="${lenCls}">${wc} words</span>${wc>=25?' · long — nudge to portal':''}</div>` : '<span style="color:#cbd5e1;">— no reply —</span>') }</td>
+        <td>${ b==='paused' ? '' : (sb ? `<span class="badge ${sb[0]}">${sb[1]}</span>` : '—') }</td>
+        <td>${ b==='paused' ? '' : `<span style="white-space:nowrap;font-size:12px;color:#475569;">${fmt(r.askedAt)}</span>` }</td>
       </tr>`;
     }
     document.getElementById('table-container').innerHTML = html + `</tbody></table>`;
