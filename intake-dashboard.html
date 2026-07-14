@@ -542,13 +542,10 @@
           <th>Customer</th>
           <th>Phone</th>
           <th>Address</th>
-          <th>Item Type</th>
           <th>Problem</th>
           <th>Priority</th>
           <th>Status</th>
           <th>Date Sent</th>
-          <th>Date Accepted</th>
-          <th>Follow-Up</th>
           <th>Form</th>
         </tr></thead>
         <tbody>`;
@@ -559,13 +556,10 @@
         <td><span class="customer-name">${safe(r[COL.CUSTOMER])}</span></td>
         <td>${phoneLink(r[COL.PHONE])}</td>
         <td style="font-size:13px;">${safe(r[COL.ADDRESS])}</td>
-        <td>${safe(r[COL.ITEM])}</td>
         <td style="max-width:180px;white-space:normal;font-size:13px;color:#475569;">${safe(r[COL.PROBLEM])}</td>
         <td>${priorityBadge(r[COL.PRIORITY])}</td>
         <td>${statusBadge(r[COL.STATUS])}</td>
         <td>${dateCell(r[COL.DATE_SENT])}</td>
-        <td>${dateCell(r[COL.DATE_ACCEPTED])}</td>
-        <td>${followUpCell(r[COL.FOLLOWUP])}</td>
         <td>${formCell(r[COL.JOTFORM_LINK], r[COL.CONFIRM_LINK])}</td>
       </tr>`;
     }
