@@ -292,6 +292,8 @@
       if (ev === 'human_resolved') rec.resolvedAt = r[COL.TS];
       if (ev === 'nudge_skipped_paused') rec.pausedSkipAt = r[COL.TS];
     }
+    const o = overlay();
+    for (const rec of Object.values(byCust)) if (!rec.resolvedAt && o[rec.customerId]) rec.resolvedAt = o[rec.customerId];
     return Object.values(byCust);
   }
 
@@ -313,6 +315,20 @@
     if ((r.sentiment || '').toLowerCase() === 'happy') return 'happy';
     if (r.replyText) return 'replied';
     return 'asked';
+  }
+  const OVERLAY_KEY = 'rf_resolved_overlay';
+  function overlay() {
+    try {
+      const o = JSON.parse(localStorage.getItem(OVERLAY_KEY) || '{}');
+      const cut = Date.now() - 2 * 3600 * 1000;   // sheet has definitely caught up after 2h
+      for (const k in o) if (new Date(o[k]).getTime() < cut) delete o[k];
+      return o;
+    } catch { return {}; }
+  }
+  function rememberResolved(cids) {
+    const o = overlay(); const ts = new Date().toISOString();
+    for (const c of cids) o[c] = ts;
+    try { localStorage.setItem(OVERLAY_KEY, JSON.stringify(o)); } catch {}
   }
   function tabOf(r) { return (r.stage || '').toLowerCase() === 'paused_skip' ? 'multi' : 'single'; }
   function tabStats(tab) {
@@ -500,8 +516,13 @@
         const res = await fetch(RESOLVE_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: cid }) });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
       }
-      toast(`✓ Marked ${cids.length} done — refreshing…`);
-      setTimeout(loadData, 2500);   // give the appends a moment to land in the sheet
+      rememberResolved(cids);   // survives refreshes while the published CSV catches up
+      const ts = new Date().toISOString();
+      for (const r of allData) if (cids.includes(String(r.customerId)) && !r.resolvedAt) r.resolvedAt = ts;
+      renderFunnel(); renderAB(); applyFilters();
+      btn.disabled = false;
+      toast(`✓ Marked ${cids.length} done`);
+      setTimeout(loadData, 15000);   // background reconcile once the sheet publish catches up
     } catch (err) {
       toast('⚠️ Could not mark done — ' + err.message);
       btn.disabled = false;
