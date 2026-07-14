@@ -58,6 +58,18 @@
     .search-input:focus { border-color: #3b82f6; }
     .filter-btn { padding: 9px 14px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-weight: 600; background: white; color: #1e293b; cursor: pointer; white-space: nowrap; }
     .filter-btn.active { background: #2563eb; border-color: #2563eb; color: white; }
+    .filter-btn.done { background: #dcfce7; border-color: #86efac; color: #166534; }
+    .filter-btn.done.active { background: #16a34a; border-color: #16a34a; color: #fff; }
+    .big-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 40px 8vw; }
+    .choice-card { border: 2px solid #e2e8f0; border-radius: 14px; background: #fff; padding: 28px 24px; cursor: pointer; text-align: left; transition: border-color .15s, transform .1s; }
+    .choice-card:hover { border-color: #2563eb; transform: translateY(-2px); }
+    .choice-card.done { background: #f0fdf4; border-color: #86efac; }
+    .choice-title { font-size: 22px; font-weight: 700; color: #0f172a; }
+    .choice-sub { font-size: 13px; color: #64748b; margin: 4px 0 16px; }
+    .prog { height: 8px; border-radius: 6px; background: #e2e8f0; overflow: hidden; }
+    .prog-fill { height: 100%; border-radius: 6px; background: #2563eb; transition: width .3s; }
+    .choice-card.done .prog-fill { background: #16a34a; }
+    .choice-meta { font-size: 13px; color: #475569; margin-top: 8px; font-weight: 600; }
     .btn-done { background: #0369a1; border-color: #0369a1; color: #fff; }
     .btn-done:hover:not(:disabled) { background: #075985; }
     .btn-done:disabled { opacity: .45; cursor: not-allowed; }
@@ -149,7 +161,7 @@
       <input class="search-input" id="search-box" type="text" placeholder="Search name, job #, reply…" oninput="applyFilters()" />
     </div>
     <button type="button" class="filter-btn active" id="active-filter" onclick="toggleActiveOnly()" title="Hide resolved/closed and jobs 5+ days past completion (needs-human always stays)">Active only</button>
-    <button type="button" class="filter-btn" id="human-filter" onclick="toggleHumanFilter()" title="Only rows that need a human">Needs human</button>
+    <button type="button" class="filter-btn active" id="human-filter" onclick="toggleHumanFilter()" title="Only rows that need a human">Needs human</button>
     <span class="sel-label" id="sel-label">0 selected</span>
     <button type="button" class="filter-btn btn-done" id="done-btn" onclick="markDone()" disabled>✓ Mark Done (<span id="sel-count">0</span>)</button>
     <span class="record-count" id="record-count"></span>
@@ -196,7 +208,7 @@
   //  STATE
   // ─────────────────────────────────────
   let allData = [], filteredData = [], refreshTimer = null;
-  let activeStage = null, humanOnly = false, activeOnly = true, visitFilter = null;
+  let activeStage = null, humanOnly = true, activeOnly = true, visitFilter = null;
 
   // ─────────────────────────────────────
   //  AUTH
@@ -302,6 +314,20 @@
     if (r.replyText) return 'replied';
     return 'asked';
   }
+  function tabOf(r) { return (r.stage || '').toLowerCase() === 'paused_skip' ? 'multi' : 'single'; }
+  function tabStats(tab) {
+    let todo = 0, done = 0;
+    for (const r of allData) {
+      if (tabOf(r) !== tab) continue;
+      const b = bucketOf(r);
+      if (tab === 'multi' ? (b === 'paused' && isActive(r)) : b === 'human') todo++;
+      else if (b === 'resolved' && r.resolvedAt) {
+        const d = (Date.now() - new Date(r.resolvedAt).getTime()) / 86400000;
+        if (!isNaN(d) && d <= ACTIVE_DAYS) done++;
+      }
+    }
+    return { todo, done, total: todo + done, pct: (todo + done) ? Math.round(done / (todo + done) * 100) : 100 };
+  }
   // Terminal (done) buckets never show under "Active only".
   const TERMINAL = new Set(['sent', 'resolved']);
   function isActive(r) {
@@ -331,7 +357,34 @@
     document.getElementById('human-filter').classList.remove('active');
     renderFunnel(); applyFilters();
   }
+  function updateVisitButtons() {
+    const cfg = [['visit-single', 'single', '1 Visit <span style="font-weight:400;">(Dispatch.me)</span>'],
+                 ['visit-multi', 'multi', 'Multi-Visit <span style="font-weight:400;">(Housecall Pro)</span>']];
+    for (const [id, tab, label] of cfg) {
+      const el = document.getElementById(id); if (!el) continue;
+      const st = tabStats(tab);
+      el.classList.toggle('active', visitFilter === tab);
+      el.classList.toggle('done', st.todo === 0);
+      el.innerHTML = label + (st.todo === 0 ? ' ✓' : ` · ${st.todo}`);
+    }
+  }
+  function renderChooser() {
+    const cards = [['single', '1 Visit', 'Dispatch.me · reply inside the Dispatch conversation'],
+                   ['multi', 'Multi-Visit', 'Housecall Pro · call the customer (305 line)']].map(([tab, title, sub]) => {
+      const st = tabStats(tab);
+      return `<button class="choice-card ${st.todo === 0 ? 'done' : ''}" onclick="setVisit('${tab}')">
+        <div class="choice-title">${title}</div><div class="choice-sub">${sub}</div>
+        <div class="prog"><div class="prog-fill" style="width:${st.pct}%"></div></div>
+        <div class="choice-meta">${st.todo === 0 ? 'All caught up ✓' : `${st.todo} to handle · ${st.done} done`}</div>
+      </button>`;
+    }).join('');
+    document.getElementById('table-container').innerHTML = `<div class="big-choice">${cards}</div>`;
+    document.getElementById('record-count').textContent = '';
+    updateSel();
+  }
   function applyFilters() {
+    updateVisitButtons();
+    if (!visitFilter) { filteredData = []; renderChooser(); return; }
     const q = document.getElementById('search-box').value.toLowerCase();
     // Drilling into a specific stage card shows that whole bucket, ignoring the Active-only cap.
     const capActive = activeOnly && !activeStage;
@@ -393,13 +446,9 @@
     const order = { human:0, paused:1, happy:2, replied:3, sent:4, resolved:5, asked:6 };
     const rows = [...filteredData].sort((a,b) => (order[bucketOf(a)]-order[bucketOf(b)]) || (new Date(b.replyAt||b.askedAt||0)-new Date(a.replyAt||a.askedAt||0)));
     const hcpView = visitFilter === 'multi';
-    let html = hcpView
-      ? `<table><thead><tr>
+    let html = `<table><thead><tr>
       <th class="col-check"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="Select all shown" /></th>
-      <th>Customer</th><th>Job / WO</th><th>Stage</th><th>Completed</th></tr></thead><tbody>`
-      : `<table><thead><tr>
-      <th class="col-check"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="Select all shown" /></th>
-      <th>Customer</th><th>Job / WO</th><th>Stage</th><th>Reply</th><th>Sentiment</th><th>Asked</th></tr></thead><tbody>`;
+      <th>Customer</th><th>Job / WO</th><th>Stage</th><th>${hcpView ? 'Completed' : 'Sentiment'}</th></tr></thead><tbody>`;
     for (const r of rows) {
       const b = bucketOf(r); const [scls, slbl] = STAGE_BADGE[b] || ['badge-gray', b];
       const wc = wordCount(r.replyText); const lenCls = wc >= 25 ? 'len-long' : (wc ? 'len-ok' : '');
@@ -414,9 +463,7 @@
         <td><span class="badge ${scls}">${slbl}</span>${b==='human'?' <span class="flag">●</span>':''}</td>
         ${ hcpView
           ? `<td><span style="white-space:nowrap;font-size:12px;color:#475569;">${fmt(r.completedAt)}</span></td>`
-          : `<td>${ b==='paused' ? `<span style="font-size:12px;color:#64748b;">Completed ${fmt(r.completedAt)} · handle via Housecall Pro</span>` : (r.replyText ? `<div class="reply-text">${esc(r.replyText)}</div><div class="reply-meta"><span class="${lenCls}">${wc} words</span>${wc>=25?' · long — nudge to portal':''}</div>` : '<span style="color:#cbd5e1;">— no reply —</span>') }</td>
-        <td>${ b==='paused' ? '' : (sb ? `<span class="badge ${sb[0]}">${sb[1]}</span>` : '—') }</td>
-        <td>${ b==='paused' ? '' : `<span style="white-space:nowrap;font-size:12px;color:#475569;">${fmt(r.askedAt)}</span>` }</td>` }
+          : `<td>${ sb ? `<span class="badge ${sb[0]}">${sb[1]}</span>` : '—' }</td>` }
       </tr>`;
     }
     document.getElementById('table-container').innerHTML = html + `</tbody></table>`;
