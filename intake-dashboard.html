@@ -127,6 +127,7 @@
     tr:hover td { background: #f8fafc; }
 
     .job-num       { font-weight: 700; font-size: 13px; color: #1e293b; }
+    a.tlink .job-num { color: #2563eb; }
     .customer-name { font-weight: 600; }
 
     /* ── BADGES ── */
@@ -259,11 +260,12 @@
   // F=5 ItemType  G=6 Problem  H=7 Priority  I=8 DateSent  J=9 Status
   // K=10 DateAccepted  L=11 CustomerID  M=12 FollowUpSent  N=13 JotformLink (Questionnaire/Update)
   // P=15 ConfirmLink (Database reconfirmation — only set when customer already in DB)
+  // Q=16 DispatchJobID (internal Dispatch id for work.dispatch.me/job/{id} links)
   const COL = {
     JOB: 0, CUSTOMER: 1, PHONE: 2, EMAIL: 3, ADDRESS: 4,
     ITEM: 5, PROBLEM: 6, PRIORITY: 7, DATE_SENT: 8, STATUS: 9,
     DATE_ACCEPTED: 10, CUSTOMER_ID: 11, FOLLOWUP: 12, JOTFORM_LINK: 13,
-    CONFIRM_LINK: 15
+    CONFIRM_LINK: 15, DISPATCH_JOB_ID: 16
   };
 
   // ─────────────────────────────────────
@@ -492,6 +494,15 @@
     return `<span class="followup-yes">✓ ${val.trim()}</span>`;
   }
 
+  // Job # display (AHS WO) → link uses Dispatch job id from col Q when present
+  function jobCell(wo, dispatchJobId) {
+    const label = (wo || '').trim() || '—';
+    const id = (dispatchJobId || '').trim();
+    if (!/^\d+$/.test(id)) return `<span class="job-num">${safe(label)}</span>`;
+    const href = 'https://work.dispatch.me/job/' + id;
+    return `<a class="tlink" href="${href}" target="_blank" rel="noopener" title="Open in Dispatch"><span class="job-num">${safe(label)}</span> ↗</a>`;
+  }
+
   function jotformLink(val) {
     if (!val || !val.trim()) return '—';
     return `<a class="tlink" href="${val.trim()}" target="_blank" rel="noopener">↗ Open</a>`;
@@ -544,7 +555,7 @@
 
     for (const r of filteredData) {
       html += `<tr>
-        <td><span class="job-num">${safe(r[COL.JOB])}</span></td>
+        <td>${jobCell(r[COL.JOB], r[COL.DISPATCH_JOB_ID])}</td>
         <td><span class="customer-name">${safe(r[COL.CUSTOMER])}</span></td>
         <td>${phoneLink(r[COL.PHONE])}</td>
         <td style="font-size:13px;">${safe(r[COL.ADDRESS])}</td>
