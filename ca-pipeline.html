@@ -411,7 +411,7 @@ function stampUpdate(job) {
 function debouncePush(job) {
   lastEditAt = Date.now();
   clearTimeout(syncTimer[job.id]);
-  syncTimer[job.id] = setTimeout(() => pushRow(job), 2000);
+  syncTimer[job.id] = setTimeout(() => pushRow(job), 1200);
 }
 
 // ─── ON-DEMAND DISPATCH SYNC ───────────────────────────────
@@ -480,12 +480,12 @@ function sendBtnHtml(job) {
   return `<button class="send-btn" onclick="sendUpdate('${job.id}','${job.stage}')">📨 Send "${s.short}" status text</button>`;
 }
 
-// ─── VIEW-DISPATCH BUTTON (all cards with a Dispatch Job ID) ───────────────
-// Opens the job's Dispatch page in a new tab. Renders on any card that has a
-// stored numeric Dispatch Job ID (so manual MAN-… cards don't show it).
+// ─── AUTHORIZE BUTTON (AUTHO Required cards) ───────────────
+// Opens the Dispatch billing-authorization page for the job. Needs the
+// Dispatch Job ID (not the WO), so it only renders once that's stored.
 function authorizeBtnHtml(job) {
-  if (!/^\d+$/.test(job.dispatchId || '')) return '';
-  return `<button class="authorize-btn" onclick="window.open('https://work.dispatch.me/schedule/job/${job.dispatchId}','_blank')">🔗 View Dispatch</button>`;
+  if (job.stage !== 's2' || !/^\d+$/.test(job.dispatchId || '')) return '';
+  return `<button class="authorize-btn" onclick="window.open('https://work.dispatch.me/billing/authorize/job/${job.dispatchId}','_blank')">🔐 Open Authorization Page</button>`;
 }
 
 async function sendUpdate(jobId, stage) {
@@ -718,7 +718,7 @@ function onNotesInput(jobId, el) {
       }
       setTimeout(() => { if (ind) { ind.textContent = ''; ind.className = 'notes-save-indicator'; } }, 2500);
     });
-  }, 10000);
+  }, 1500);
 }
 
 function onNotesBlur(jobId, el) {
