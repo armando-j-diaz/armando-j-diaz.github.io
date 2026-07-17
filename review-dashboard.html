@@ -439,6 +439,10 @@
       el.classList.toggle('done', st.todo === 0);
       el.innerHTML = label + (st.todo === 0 ? ' ✓' : ` · ${st.todo}`);
     }
+    // Bulk select + Mark Done only apply to the 1-Visit table (kanban has per-card Back/Done)
+    const showBulk = visitFilter === 'single';
+    document.getElementById('sel-label').style.display = showBulk ? '' : 'none';
+    document.getElementById('done-btn').style.display = showBulk ? '' : 'none';
   }
   function renderChooser() {
     const cards = [['single', '1 Visit', 'Dispatch.me · reply inside the Dispatch conversation'],
