@@ -91,6 +91,8 @@
   .s10-bar { background: #dc2626; }
   .s11  { color: #5eead4; background: #042f2e; border-color: #0f766e; }
   .s11-bar { background: #14b8a6; }
+  .s12  { color: #fcd34d; background: #2a2005; border-color: #b45309; }
+  .s12-bar { background: #f59e0b; }
   .filter-all { color: #e2e8f0; background: #1e293b; border-color: #334155; }
   .filter-all.active { background: #334155; opacity: 1; }
   .filter-completed { color: #4ade80; background: #0a1a0a; border-color: #15803d; margin-left: auto; }
@@ -274,6 +276,7 @@ const STAGES = [
   { id: 's8', label: 'Waiting for Parts',        short: 'Waiting',     next: 'Parts ordered — check ETA daily, keep customer updated' },
   { id: 's11', label: 'Ready to RS',             short: 'Ready RS',    next: 'Parts in / job ready — reschedule the install with the customer now' },
   { id: 's10', label: 'CIL Accepted',            short: 'CIL Acc',     next: 'Cash-in-Lieu accepted — STOP all work, invoice for work already done. Customer notified. Office closes it out.' },
+  { id: 's12', label: 'Possible Upgrade',        short: 'Poss Upgrade', next: 'Upgrade opportunity — prepare and pitch replacement/upgrade options to the customer' },
 ];
 
 // Stages with a one-tap Dispatch status message (must match the Make scenario routes + ledger keys)
@@ -411,7 +414,7 @@ function stampUpdate(job) {
 function debouncePush(job) {
   lastEditAt = Date.now();
   clearTimeout(syncTimer[job.id]);
-  syncTimer[job.id] = setTimeout(() => pushRow(job), 1200);
+  syncTimer[job.id] = setTimeout(() => pushRow(job), 2000);
 }
 
 // ─── ON-DEMAND DISPATCH SYNC ───────────────────────────────
@@ -423,7 +426,10 @@ async function syncNow() {
     const res = await fetch(SYNC_WEBHOOK_URL);
     const data = await res.json();
     const n = parseInt(data.inserted) || 0;
-    btn.textContent = n > 0 ? `✓ ${n} new job${n > 1 ? 's' : ''} added` : '✓ Up to date';
+    const p = parseInt(data.pruned) || 0;
+    btn.textContent = (n > 0 || p > 0)
+      ? `✓ ${n} added · ${p} cleared`
+      : '✓ Up to date';
     await loadFromSheet();
   } catch(e) {
     btn.textContent = '⚠️ Sync failed — retry';
@@ -480,12 +486,12 @@ function sendBtnHtml(job) {
   return `<button class="send-btn" onclick="sendUpdate('${job.id}','${job.stage}')">📨 Send "${s.short}" status text</button>`;
 }
 
-// ─── AUTHORIZE BUTTON (AUTHO Required cards) ───────────────
-// Opens the Dispatch billing-authorization page for the job. Needs the
-// Dispatch Job ID (not the WO), so it only renders once that's stored.
+// ─── VIEW-DISPATCH BUTTON (all cards with a Dispatch Job ID) ───────────────
+// Opens the job's Dispatch page in a new tab. Renders on any card that has a
+// stored numeric Dispatch Job ID (so manual MAN-… cards don't show it).
 function authorizeBtnHtml(job) {
-  if (job.stage !== 's2' || !/^\d+$/.test(job.dispatchId || '')) return '';
-  return `<button class="authorize-btn" onclick="window.open('https://work.dispatch.me/billing/authorize/job/${job.dispatchId}','_blank')">🔐 Open Authorization Page</button>`;
+  if (!/^\d+$/.test(job.dispatchId || '')) return '';
+  return `<button class="authorize-btn" onclick="window.open('https://work.dispatch.me/schedule/job/${job.dispatchId}','_blank')">🔗 View Dispatch</button>`;
 }
 
 async function sendUpdate(jobId, stage) {
@@ -718,7 +724,7 @@ function onNotesInput(jobId, el) {
       }
       setTimeout(() => { if (ind) { ind.textContent = ''; ind.className = 'notes-save-indicator'; } }, 2500);
     });
-  }, 1500);
+  }, 10000);
 }
 
 function onNotesBlur(jobId, el) {
