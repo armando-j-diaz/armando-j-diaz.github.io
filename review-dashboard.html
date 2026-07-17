@@ -46,7 +46,7 @@
     .s-sent   .num { color: #7c3aed; }
     .s-human  .num { color: #b91c1c; }
     .s-paused .num { color: #b45309; }
-    .abtest { padding: 0 24px 6px; font-size: 12px; color: #64748b; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .abtest { padding: 0 24px 6px; font-size: 12px; color: #64748b; display: none; gap: 12px; flex-wrap: wrap; align-items: center; }   /* hidden 07/17 — ops don't need A/B; set display:flex to restore */
     .abtest .ab { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 12px; }
     .abtest .ab b { color: #1e293b; }
 
@@ -228,13 +228,14 @@
   const COL = { TS:0, EVENT:1, STAGE:2, CUSTOMER_ID:3, JOB_ID:4, JOB_LINK:5, WO:6,
                 NAME:7, CITY:8, SERVICE:9, SENTIMENT:10, REPLY:11, REPLY_WORDS:12, COMPLETED:13, VARIANT:14 };
 
+  // Funnel cards — set show:true to bring a card back. Ops view only needs human + hold.
   const STAGES = [
-    { key: 'asked',   cls: 's-asked',   label: 'Asked',       sub: 'awaiting reply' },
-    { key: 'replied', cls: 's-replied', label: 'Replied',     sub: 'customer responded' },
-    { key: 'happy',   cls: 's-happy',   label: 'Happy',       sub: 'positive signal' },
-    { key: 'sent',    cls: 's-sent',    label: 'Review link', sub: 'portal link sent' },
-    { key: 'human',   cls: 's-human',   label: 'Needs human', sub: 'reply in Dispatch' },
-    { key: 'paused',  cls: 's-paused',  label: 'Hold (HCP)', sub: 'paused / recall — call first' },
+    { key: 'asked',   cls: 's-asked',   label: 'Asked',       sub: 'awaiting reply',      show: false },
+    { key: 'replied', cls: 's-replied', label: 'Replied',     sub: 'customer responded',  show: false },
+    { key: 'happy',   cls: 's-happy',   label: 'Happy',       sub: 'positive signal',     show: false },
+    { key: 'sent',    cls: 's-sent',    label: 'Review link', sub: 'portal link sent',    show: false },
+    { key: 'human',   cls: 's-human',   label: 'Needs human', sub: 'reply in Dispatch',   show: true  },
+    { key: 'paused',  cls: 's-paused',  label: 'Hold (HCP)',  sub: 'paused / recall — call first', show: true },
   ];
 
   // ─────────────────────────────────────
@@ -490,11 +491,11 @@
   //  RENDER
   // ─────────────────────────────────────
   function counts() {   // lifetime funnel totals (all data)
-    const c = { asked:0, replied:0, happy:0, sent:0, human:0 };
+    const c = { asked:0, replied:0, happy:0, sent:0, human:0, paused:0 };
     allData.forEach(r => { const b = bucketOf(r); if (b in c) c[b]++; });
     return c;
   }
-  function renderAB() {   // nudge A/B readout: asked vs replied per variant
+  function renderAB() {   // nudge A/B readout (UI hidden via CSS — flip .abtest to display:flex to restore)
     const el = document.getElementById('abtest'); if (!el) return;
     const g = {};
     allData.forEach(r => {
@@ -508,7 +509,7 @@
   }
   function renderFunnel() {
     const c = counts();
-    document.getElementById('funnel').innerHTML = STAGES.map(s => `
+    document.getElementById('funnel').innerHTML = STAGES.filter(s => s.show).map(s => `
       <div class="stat ${s.cls} ${activeStage===s.key?'active':''}" onclick="setStage('${s.key}')">
         <div class="num">${c[s.key]||0}</div><div class="lbl">${s.label}</div><div class="sub">${s.sub}</div>
       </div>`).join('');
