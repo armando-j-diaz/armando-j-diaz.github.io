@@ -110,6 +110,30 @@
     .len-long { color: #b45309; font-weight: 700; }
     .len-ok   { color: #059669; font-weight: 600; }
 
+    /* ── KANBAN (Multi-Visit / HCP pipeline) ── */
+    .kanban { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start; }
+    @media (max-width: 860px) { .kanban { grid-template-columns: 1fr; } }
+    .kcol { background: #eef2f7; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; min-height: 120px; }
+    .kcol-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 10px; }
+    .kcol-title { font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #475569; }
+    .kcol-count { font-size: 12px; font-weight: 700; background: #fff; border: 1px solid #e2e8f0; border-radius: 999px; padding: 2px 9px; color: #475569; }
+    .kcol.k-done { background: #f0fdf4; border-color: #bbf7d0; }
+    .kcard { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+    .kcard:last-child { margin-bottom: 0; }
+    .kcard .kname { font-weight: 700; font-size: 14px; }
+    .kcard .kmeta { font-size: 12px; color: #64748b; margin-top: 3px; line-height: 1.5; }
+    .kbtn { width: 100%; margin-top: 10px; padding: 8px 10px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .kbtn-send { background: #2563eb; color: #fff; }
+    .kbtn-send:hover { background: #1d4ed8; }
+    .kbtn-done { background: #16a34a; color: #fff; }
+    .kbtn-done:hover { background: #15803d; }
+    .kbtn:disabled { opacity: .5; cursor: wait; }
+    .age { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+    .age-fresh { background: #f1f5f9; color: #475569; }
+    .age-warn  { background: #fef3c7; color: #b45309; }
+    .age-late  { background: #fee2e2; color: #991b1b; }
+    .kempty { text-align: center; color: #94a3b8; font-size: 13px; padding: 24px 8px; }
+
     .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.3); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 2000; }
     .toast.show { opacity: 1; }
     .loading-state, .empty-state { text-align: center; padding: 60px 24px; color: #94a3b8; font-size: 14px; }
@@ -181,10 +205,15 @@
   // ─────────────────────────────────────
   //  CONFIG
   // ─────────────────────────────────────
-  const PASSWORD = 'JetADMIN';                         // same gate as intake dashboard
-  // Published CSV of the "Review Tracker" sheet tab (File ▸ Share ▸ Publish to web ▸ Review Tracker ▸ CSV). Zero Make ops to read.
+  const PASSWORD = 'worker2026';                         // same gate as intake dashboard
+  // Apps Script web app on the Review Tracker spreadsheet (see WIP/review-tracker-gas.gs).
+  // Instant reads (no publish lag) + realtime writes, zero Make ops. Until pasted, the
+  // dashboard falls back to the published CSV for reads and the Make webhook for writes.
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbx7zsfOk1Dyk8NpYpZLXkeBMz57so-6n_TzMRo47-kthCqiLVKzFedmVuWVWAhLtsBH/exec';
+  const GAS_SECRET = 'AAxnzkLRrmt1xyqf0LGSyVij';
+  const gasReady = () => !GAS_URL.startsWith('PASTE_');
+  // FALLBACKS (pre-GAS): published CSV of the "Review Tracker" tab + Make resolve webhook.
   const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ_ET0tI7CyDMdDOtXP9MOyFZnIbkgrnIaZ2V0el70eMGo9tX8hA3vq58tMT-JOhZad_OCQeqG_X5X7/pub?gid=0&single=true&output=csv';
-  // Make webhook that appends a `human_resolved` row per selected customerId. Fires only on button click.
   const RESOLVE_WEBHOOK = 'https://hook.us2.make.com/gmqonk8heubt9vq22xbstpsqve8o6mpu';
   const REFRESH_MS = 60000;
   const ACTIVE_DAYS = 5;                                 // rows older than this (since completion) drop out of "Active only"
@@ -201,7 +230,7 @@
     { key: 'happy',   cls: 's-happy',   label: 'Happy',       sub: 'positive signal' },
     { key: 'sent',    cls: 's-sent',    label: 'Review link', sub: 'portal link sent' },
     { key: 'human',   cls: 's-human',   label: 'Needs human', sub: 'reply in Dispatch' },
-    { key: 'paused',  cls: 's-paused',  label: 'Paused / NCC', sub: 'handle via Housecall Pro' },
+    { key: 'paused',  cls: 's-paused',  label: 'Hold (HCP)', sub: 'paused / recall — call first' },
   ];
 
   // ─────────────────────────────────────
@@ -257,9 +286,18 @@
   async function loadData() {
     document.getElementById('last-updated').textContent = 'Refreshing…';
     try {
-      const resp = await fetch(SHEET_CSV_URL + '&_=' + Date.now(), { cache: 'no-store' });  // cache-buster: force a fresh pull each refresh
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const rows = parseCSV(await resp.text()).slice(1);   // drop header
+      let rows;
+      if (gasReady()) {   // Apps Script JSON: instant, no publish lag
+        const resp = await fetch(`${GAS_URL}?secret=${encodeURIComponent(GAS_SECRET)}&_=${Date.now()}`, { cache: 'no-store' });
+        if (!resp.ok) throw new Error(`GAS HTTP ${resp.status}`);
+        const j = await resp.json();
+        if (j.error) throw new Error('GAS: ' + j.error);
+        rows = (j.rows || []).slice(1).map(r => r.map(c => c == null ? '' : String(c)));
+      } else {            // fallback: published CSV (1-5 min lag)
+        const resp = await fetch(SHEET_CSV_URL + '&_=' + Date.now(), { cache: 'no-store' });  // cache-buster: force a fresh pull each refresh
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        rows = parseCSV(await resp.text()).slice(1);   // drop header
+      }
       allData = collapse(rows);
       const t = new Date();
       document.getElementById('last-updated').textContent = 'Updated ' + t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -291,9 +329,14 @@
       if (ev === 'review_link_sent') rec.reviewSentAt = r[COL.TS];
       if (ev === 'human_resolved') rec.resolvedAt = r[COL.TS];
       if (ev === 'nudge_skipped_paused') rec.pausedSkipAt = r[COL.TS];
+      if (ev === 'nudge_skipped_recall') rec.recallSkipAt = r[COL.TS];
+      if (ev === 'hcp_msg1_sent') rec.msg1SentAt = r[COL.TS];
     }
-    const o = overlay();
-    for (const rec of Object.values(byCust)) if (!rec.resolvedAt && o[rec.customerId]) rec.resolvedAt = o[rec.customerId];
+    const o = overlay(OVERLAY_RESOLVED), m = overlay(OVERLAY_MSG1);
+    for (const rec of Object.values(byCust)) {
+      if (!rec.resolvedAt && o[rec.customerId]) rec.resolvedAt = o[rec.customerId];
+      if (!rec.msg1SentAt && m[rec.customerId]) rec.msg1SentAt = m[rec.customerId];
+    }
     return Object.values(byCust);
   }
 
@@ -310,27 +353,29 @@
     const s = (r.stage || '').toLowerCase();
     if (r.resolvedAt || s === 'resolved') return 'resolved';   // human marked done
     if (s.startsWith('escalated') || s === 'needs_human') return 'human';   // covers escalated + escalated_urgent (v2)
-    if (s === 'paused_skip') return 'paused';   // NCC pipeline: human calls first, system never texts them
+    if (s === 'paused_skip' || s === 'skip_recall') return 'paused';   // hold lane: human calls first, system never texts them
     if (r.reviewSentAt || s === 'closed') return 'sent';
     if ((r.sentiment || '').toLowerCase() === 'happy') return 'happy';
     if (r.replyText) return 'replied';
     return 'asked';
   }
-  const OVERLAY_KEY = 'rf_resolved_overlay';
-  function overlay() {
+  // Optimistic overlays (bridge the gap until the sheet read reflects a click; expire after 2h)
+  const OVERLAY_RESOLVED = 'rf_resolved_overlay', OVERLAY_MSG1 = 'rf_msg1_overlay';
+  function overlay(key) {
     try {
-      const o = JSON.parse(localStorage.getItem(OVERLAY_KEY) || '{}');
+      const o = JSON.parse(localStorage.getItem(key) || '{}');
       const cut = Date.now() - 2 * 3600 * 1000;   // sheet has definitely caught up after 2h
       for (const k in o) if (new Date(o[k]).getTime() < cut) delete o[k];
       return o;
     } catch { return {}; }
   }
-  function rememberResolved(cids) {
-    const o = overlay(); const ts = new Date().toISOString();
+  function rememberOverlay(key, cids) {
+    const o = overlay(key); const ts = new Date().toISOString();
     for (const c of cids) o[c] = ts;
-    try { localStorage.setItem(OVERLAY_KEY, JSON.stringify(o)); } catch {}
+    try { localStorage.setItem(key, JSON.stringify(o)); } catch {}
   }
-  function tabOf(r) { return (r.stage || '').toLowerCase() === 'paused_skip' ? 'multi' : 'single'; }
+  const MULTI_STAGES = new Set(['paused_skip', 'skip_recall']);
+  function tabOf(r) { return MULTI_STAGES.has((r.stage || '').toLowerCase()) ? 'multi' : 'single'; }
   function tabStats(tab) {
     let todo = 0, done = 0;
     for (const r of allData) {
@@ -349,6 +394,7 @@
   function isActive(r) {
     const b = bucketOf(r);
     if (b === 'human') return true;             // unresolved needs-human always stays active
+    if (b === 'paused') return true;            // hold lane stays visible until confirmed done
     if (TERMINAL.has(b)) return false;          // happy/closed + resolved → inactive
     const ref = r.completedAt || r.askedAt || r.replyAt;   // asked/replied → active only if recent
     if (!ref) return true;
@@ -386,7 +432,7 @@
   }
   function renderChooser() {
     const cards = [['single', '1 Visit', 'Dispatch.me · reply inside the Dispatch conversation'],
-                   ['multi', 'Multi-Visit', 'Housecall Pro · call the customer (305 line)']].map(([tab, title, sub]) => {
+                   ['multi', 'Multi-Visit', 'Housecall Pro pipeline · send 1st message, track replies (305 line)']].map(([tab, title, sub]) => {
       const st = tabStats(tab);
       return `<button class="choice-card ${st.todo === 0 ? 'done' : ''}" onclick="setVisit('${tab}')">
         <div class="choice-title">${title}</div><div class="choice-sub">${sub}</div>
@@ -402,16 +448,19 @@
     updateVisitButtons();
     if (!visitFilter) { filteredData = []; renderChooser(); return; }
     const q = document.getElementById('search-box').value.toLowerCase();
+    const hayOf = r => [r.customerName, r.jobTitle, r.jobId, r.replyText, r.city].join(' ').toLowerCase();
+    if (visitFilter === 'multi') {   // kanban view: search only — the columns ARE the state filter
+      filteredData = allData.filter(r => tabOf(r) === 'multi' && (!q || hayOf(r).includes(q)));
+      renderKanban(); return;
+    }
     // Drilling into a specific stage card shows that whole bucket, ignoring the Active-only cap.
     const capActive = activeOnly && !activeStage;
     filteredData = allData.filter(r => {
       const b = bucketOf(r);
-      const hay = [r.customerName, r.jobTitle, r.jobId, r.replyText, r.city].join(' ').toLowerCase();
-      const visitOk = !visitFilter || (visitFilter === 'multi' ? b === 'paused' : b !== 'paused');
-      return (!q || hay.includes(q))
+      return tabOf(r) === 'single'
+        && (!q || hayOf(r).includes(q))
         && (!activeStage || b === activeStage)
-        && (!humanOnly || b === 'human' || b === 'paused')
-        && visitOk
+        && (!humanOnly || b === 'human')
         && (!capActive || isActive(r));
     });
     renderTable();
@@ -461,10 +510,9 @@
     if (!filteredData.length) { document.getElementById('table-container').innerHTML = `<div class="empty-state">No matching records.</div>`; updateSel(); return; }
     const order = { human:0, paused:1, happy:2, replied:3, sent:4, resolved:5, asked:6 };
     const rows = [...filteredData].sort((a,b) => (order[bucketOf(a)]-order[bucketOf(b)]) || (new Date(b.replyAt||b.askedAt||0)-new Date(a.replyAt||a.askedAt||0)));
-    const hcpView = visitFilter === 'multi';
     let html = `<table><thead><tr>
       <th class="col-check"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="Select all shown" /></th>
-      <th>Customer</th><th>Job / WO</th><th>Stage</th><th>${hcpView ? 'Completed' : 'Sentiment'}</th></tr></thead><tbody>`;
+      <th>Customer</th><th>Job / WO</th><th>Stage</th><th>Sentiment</th></tr></thead><tbody>`;
     for (const r of rows) {
       const b = bucketOf(r); const [scls, slbl] = STAGE_BADGE[b] || ['badge-gray', b];
       const wc = wordCount(r.replyText); const lenCls = wc >= 25 ? 'len-long' : (wc ? 'len-ok' : '');
@@ -477,13 +525,98 @@
         <td><div class="customer-name">${esc(r.customerName||'—')}</div>${cityLine}</td>
         <td>${jobCell}<div class="reply-meta">${esc(r.jobTitle||'')}</div></td>
         <td><span class="badge ${scls}">${slbl}</span>${b==='human'?' <span class="flag">●</span>':''}</td>
-        ${ hcpView
-          ? `<td><span style="white-space:nowrap;font-size:12px;color:#475569;">${fmt(r.completedAt)}</span></td>`
-          : `<td>${ sb ? `<span class="badge ${sb[0]}">${sb[1]}</span>` : '—' }</td>` }
+        <td>${ sb ? `<span class="badge ${sb[0]}">${sb[1]}</span>` : '—' }</td>
       </tr>`;
     }
     document.getElementById('table-container').innerHTML = html + `</tbody></table>`;
     updateSel();
+  }
+
+  // ─────────────────────────────────────
+  //  KANBAN (Multi-Visit / HCP pipeline)
+  //  col 1: nothing sent yet → col 2: 1st message sent (elapsed timer) → col 3: done
+  // ─────────────────────────────────────
+  function ageBadge(ts) {
+    const h = (Date.now() - new Date(ts).getTime()) / 3600000;
+    if (isNaN(h)) return '';
+    const txt = h < 1 ? `${Math.max(1, Math.round(h * 60))}m` : h < 48 ? `${Math.round(h)}h` : `${Math.floor(h / 24)}d`;
+    const cls = h < 24 ? 'age-fresh' : h < 48 ? 'age-warn' : 'age-late';
+    return `<span class="age ${cls}" title="Time since 1st message">⏱ ${txt} ago</span>`;
+  }
+  function reasonBadge(r) {
+    const recall = (r.stage || '').toLowerCase() === 'skip_recall' || r.recallSkipAt;
+    return recall ? '<span class="badge badge-red">Recall</span>' : '<span class="badge badge-orange">Paused / NCC</span>';
+  }
+  function kcard(r, col) {
+    const jobLink = r.jobLink || (/^\d+$/.test(String(r.jobId||'')) ? 'https://work.dispatch.me/job/' + r.jobId : '');
+    const job = jobLink ? `<a class="tlink" href="${jobLink}" target="_blank" rel="noopener">${esc(r.jobId)} ↗</a>` : esc(r.jobId || '—');
+    const btn = col === 0
+      ? `<button class="kbtn kbtn-send" onclick="confirmMsg1('${esc(r.customerId)}', this)">✉ Confirm 1st message sent</button>`
+      : col === 1
+      ? `<button class="kbtn kbtn-done" onclick="kanbanDone('${esc(r.customerId)}', this)">✓ Done</button>`
+      : '';
+    return `<div class="kcard">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+        <span class="kname">${esc(r.customerName || '—')}</span>${reasonBadge(r)}
+      </div>
+      <div class="kmeta">${job}${r.city ? ' · ' + esc(r.city) : ''}<br>Completed ${fmt(r.completedAt)}${col === 1 ? '<br>' + ageBadge(r.msg1SentAt) : ''}${col === 2 ? '<br>Done ' + fmt(r.resolvedAt) : ''}</div>
+      ${btn}</div>`;
+  }
+  function renderKanban() {
+    document.getElementById('record-count').textContent = `${filteredData.length} of ${allData.length}`;
+    const cols = [[], [], []];
+    for (const r of filteredData) {
+      if (r.resolvedAt) { const d = (Date.now() - new Date(r.resolvedAt).getTime()) / 86400000; if (isNaN(d) || d <= ACTIVE_DAYS) cols[2].push(r); }
+      else if (r.msg1SentAt) cols[1].push(r);
+      else cols[0].push(r);
+    }
+    cols[0].sort((a,b) => new Date(a.completedAt||0) - new Date(b.completedAt||0));
+    cols[1].sort((a,b) => new Date(a.msg1SentAt||0) - new Date(b.msg1SentAt||0));   // oldest waiting first
+    cols[2].sort((a,b) => new Date(b.resolvedAt||0) - new Date(a.resolvedAt||0));
+    const meta = [['No Message Sent', ''], ['Waiting for Reply', ''], ['Done', 'k-done']];
+    document.getElementById('table-container').innerHTML = `<div class="kanban">` + meta.map(([title, cls], i) => `
+      <div class="kcol ${cls}">
+        <div class="kcol-head"><span class="kcol-title">${title}</span><span class="kcol-count">${cols[i].length}</span></div>
+        ${cols[i].length ? cols[i].map(r => kcard(r, i)).join('') : `<div class="kempty">${i === 2 ? 'Nothing finished yet' : 'Empty — all clear'}</div>`}
+      </div>`).join('') + `</div>`;
+    updateSel();
+  }
+
+  // Single event write: Apps Script when wired, Make webhook fallback (human_resolved only).
+  async function postEvent(event, cid) {
+    if (gasReady()) {
+      const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' },   // text/plain avoids CORS preflight
+        body: JSON.stringify({ secret: GAS_SECRET, event, customerId: cid }) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const j = await res.json();
+      if (j.error) throw new Error(j.error);
+    } else {
+      if (event !== 'human_resolved') throw new Error('Apps Script not wired yet (needed for this action)');
+      const res = await fetch(RESOLVE_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: cid }) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    }
+  }
+  async function confirmMsg1(cid, btn) {
+    if (!confirm('Confirm the 1st message was sent through Housecall Pro? Card moves to "Waiting for Reply".')) return;
+    btn.disabled = true;
+    try {
+      await postEvent('hcp_msg1_sent', cid);
+      rememberOverlay(OVERLAY_MSG1, [cid]);
+      const r = allData.find(x => String(x.customerId) === String(cid)); if (r) r.msg1SentAt = new Date().toISOString();
+      renderFunnel(); applyFilters(); toast('✓ Moved to Waiting for Reply');
+      setTimeout(loadData, gasReady() ? 4000 : 15000);
+    } catch (err) { toast('⚠️ Could not save — ' + err.message); btn.disabled = false; }
+  }
+  async function kanbanDone(cid, btn) {
+    if (!confirm('Mark this customer done?')) return;
+    btn.disabled = true;
+    try {
+      await postEvent('human_resolved', cid);
+      rememberOverlay(OVERLAY_RESOLVED, [cid]);
+      const r = allData.find(x => String(x.customerId) === String(cid)); if (r) r.resolvedAt = new Date().toISOString();
+      renderFunnel(); applyFilters(); toast('✓ Done');
+      setTimeout(loadData, gasReady() ? 4000 : 15000);
+    } catch (err) { toast('⚠️ Could not save — ' + err.message); btn.disabled = false; }
   }
 
   // ─────────────────────────────────────
@@ -508,21 +641,17 @@
   async function markDone() {
     const cids = selectedCids();
     if (!cids.length) return;
-    if (RESOLVE_WEBHOOK.startsWith('PASTE_')) { toast('Resolve webhook not wired yet'); return; }
     if (!confirm(`Mark ${cids.length} customer${cids.length !== 1 ? 's' : ''} as done? They'll drop off the active list.`)) return;
     const btn = document.getElementById('done-btn'); btn.disabled = true;
     try {
-      for (const cid of cids) {   // one flat POST per customer → webhook appends a human_resolved row
-        const res = await fetch(RESOLVE_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: cid }) });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      }
-      rememberResolved(cids);   // survives refreshes while the published CSV catches up
+      for (const cid of cids) await postEvent('human_resolved', cid);   // one append per customer
+      rememberOverlay(OVERLAY_RESOLVED, cids);   // survives refreshes until the sheet read reflects it
       const ts = new Date().toISOString();
       for (const r of allData) if (cids.includes(String(r.customerId)) && !r.resolvedAt) r.resolvedAt = ts;
       renderFunnel(); renderAB(); applyFilters();
       btn.disabled = false;
       toast(`✓ Marked ${cids.length} done`);
-      setTimeout(loadData, 15000);   // background reconcile once the sheet publish catches up
+      setTimeout(loadData, gasReady() ? 4000 : 15000);   // background reconcile
     } catch (err) {
       toast('⚠️ Could not mark done — ' + err.message);
       btn.disabled = false;
