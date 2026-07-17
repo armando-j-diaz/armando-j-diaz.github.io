@@ -60,6 +60,10 @@
     .filter-btn.active { background: #2563eb; border-color: #2563eb; color: white; }
     .filter-btn.done { background: #dcfce7; border-color: #86efac; color: #166534; }
     .filter-btn.done.active { background: #16a34a; border-color: #16a34a; color: #fff; }
+    /* Dev-only toggles — keep reachable but visually quiet (ops rarely need these) */
+    .filter-btn-dev { padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; border-width: 1px; color: #94a3b8; border-color: #e2e8f0; background: transparent; opacity: .7; }
+    .filter-btn-dev:hover { opacity: 1; color: #64748b; }
+    .filter-btn-dev.active { background: #f1f5f9; border-color: #cbd5e1; color: #64748b; opacity: .85; }
     .big-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 40px 8vw; }
     .choice-card { border: 2px solid #e2e8f0; border-radius: 14px; background: #fff; padding: 28px 24px; cursor: pointer; text-align: left; transition: border-color .15s, transform .1s; }
     .choice-card:hover { border-color: #2563eb; transform: translateY(-2px); }
@@ -188,8 +192,8 @@
       <span class="search-icon">🔍</span>
       <input class="search-input" id="search-box" type="text" placeholder="Search name, job #, reply…" oninput="applyFilters()" />
     </div>
-    <button type="button" class="filter-btn active" id="active-filter" onclick="toggleActiveOnly()" title="Hide resolved/closed and jobs 5+ days past completion (needs-human always stays)">Active only</button>
-    <button type="button" class="filter-btn active" id="human-filter" onclick="toggleHumanFilter()" title="Only rows that need a human">Needs human</button>
+    <button type="button" class="filter-btn filter-btn-dev active" id="active-filter" onclick="toggleActiveOnly()" title="Dev: hide resolved/closed and jobs 5+ days past completion (needs-human always stays)">Active only</button>
+    <button type="button" class="filter-btn filter-btn-dev active" id="human-filter" onclick="toggleHumanFilter()" title="Dev: only rows that need a human">Needs human</button>
     <span class="sel-label" id="sel-label">0 selected</span>
     <button type="button" class="filter-btn btn-done" id="done-btn" onclick="markDone()" disabled>✓ Mark Done (<span id="sel-count">0</span>)</button>
     <span class="record-count" id="record-count"></span>
