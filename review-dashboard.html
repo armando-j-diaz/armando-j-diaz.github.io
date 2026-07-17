@@ -123,8 +123,12 @@
     .kcard .kname { font-weight: 700; font-size: 14px; }
     .kcard .kmeta { font-size: 12px; color: #64748b; margin-top: 3px; line-height: 1.5; }
     .kbtn { width: 100%; margin-top: 10px; padding: 8px 10px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .kbtn-row { display: flex; gap: 8px; margin-top: 10px; }
+    .kbtn-row .kbtn { margin-top: 0; flex: 1; }
     .kbtn-send { background: #2563eb; color: #fff; }
     .kbtn-send:hover { background: #1d4ed8; }
+    .kbtn-back { background: #fff; color: #475569; border: 1.5px solid #cbd5e1; }
+    .kbtn-back:hover { background: #f8fafc; border-color: #94a3b8; }
     .kbtn-done { background: #16a34a; color: #fff; }
     .kbtn-done:hover { background: #15803d; }
     .kbtn:disabled { opacity: .5; cursor: wait; }
@@ -331,6 +335,7 @@
       if (ev === 'nudge_skipped_paused') rec.pausedSkipAt = r[COL.TS];
       if (ev === 'nudge_skipped_recall') rec.recallSkipAt = r[COL.TS];
       if (ev === 'hcp_msg1_sent') rec.msg1SentAt = r[COL.TS];
+      if (ev === 'hcp_msg1_undo') delete rec.msg1SentAt;   // Back from Waiting → No Message Sent
     }
     const o = overlay(OVERLAY_RESOLVED), m = overlay(OVERLAY_MSG1);
     for (const rec of Object.values(byCust)) {
@@ -372,6 +377,11 @@
   function rememberOverlay(key, cids) {
     const o = overlay(key); const ts = new Date().toISOString();
     for (const c of cids) o[c] = ts;
+    try { localStorage.setItem(key, JSON.stringify(o)); } catch {}
+  }
+  function forgetOverlay(key, cids) {
+    const o = overlay(key);
+    for (const c of cids) delete o[c];
     try { localStorage.setItem(key, JSON.stringify(o)); } catch {}
   }
   const MULTI_STAGES = new Set(['paused_skip', 'skip_recall']);
@@ -553,7 +563,10 @@
     const btn = col === 0
       ? `<button class="kbtn kbtn-send" onclick="confirmMsg1('${esc(r.customerId)}', this)">✉ Confirm 1st message sent</button>`
       : col === 1
-      ? `<button class="kbtn kbtn-done" onclick="kanbanDone('${esc(r.customerId)}', this)">✓ Done</button>`
+      ? `<div class="kbtn-row">
+          <button class="kbtn kbtn-back" onclick="kanbanBack('${esc(r.customerId)}', this)">← Back</button>
+          <button class="kbtn kbtn-done" onclick="kanbanDone('${esc(r.customerId)}', this)">✓ Done</button>
+        </div>`
       : '';
     return `<div class="kcard">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
@@ -596,8 +609,15 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
     }
   }
+  function disableKanbanBtns(btn) {
+    const row = btn.closest('.kbtn-row');
+    (row ? [...row.querySelectorAll('button')] : [btn]).forEach(b => { b.disabled = true; });
+  }
+  function enableKanbanBtns(btn) {
+    const row = btn.closest('.kbtn-row');
+    (row ? [...row.querySelectorAll('button')] : [btn]).forEach(b => { b.disabled = false; });
+  }
   async function confirmMsg1(cid, btn) {
-    if (!confirm('Confirm the 1st message was sent through Housecall Pro? Card moves to "Waiting for Reply".')) return;
     btn.disabled = true;
     try {
       await postEvent('hcp_msg1_sent', cid);
@@ -607,16 +627,25 @@
       setTimeout(loadData, gasReady() ? 4000 : 15000);
     } catch (err) { toast('⚠️ Could not save — ' + err.message); btn.disabled = false; }
   }
+  async function kanbanBack(cid, btn) {
+    disableKanbanBtns(btn);
+    try {
+      await postEvent('hcp_msg1_undo', cid);
+      forgetOverlay(OVERLAY_MSG1, [cid]);
+      const r = allData.find(x => String(x.customerId) === String(cid)); if (r) delete r.msg1SentAt;
+      renderFunnel(); applyFilters(); toast('↩ Moved back to No Message Sent');
+      setTimeout(loadData, gasReady() ? 4000 : 15000);
+    } catch (err) { toast('⚠️ Could not save — ' + err.message); enableKanbanBtns(btn); }
+  }
   async function kanbanDone(cid, btn) {
-    if (!confirm('Mark this customer done?')) return;
-    btn.disabled = true;
+    disableKanbanBtns(btn);
     try {
       await postEvent('human_resolved', cid);
       rememberOverlay(OVERLAY_RESOLVED, [cid]);
       const r = allData.find(x => String(x.customerId) === String(cid)); if (r) r.resolvedAt = new Date().toISOString();
       renderFunnel(); applyFilters(); toast('✓ Done');
       setTimeout(loadData, gasReady() ? 4000 : 15000);
-    } catch (err) { toast('⚠️ Could not save — ' + err.message); btn.disabled = false; }
+    } catch (err) { toast('⚠️ Could not save — ' + err.message); enableKanbanBtns(btn); }
   }
 
   // ─────────────────────────────────────
