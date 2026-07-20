@@ -29,6 +29,9 @@
     .refresh-area { display: flex; align-items: center; gap: 10px; font-size: 12px; color: #94a3b8; }
     .refresh-btn { background: #334155; color: #e2e8f0; border: none; border-radius: 6px; padding: 5px 12px; font-size: 12px; cursor: pointer; transition: background 0.2s; }
     .refresh-btn:hover { background: #475569; }
+    .nudge-btn { background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    .nudge-btn:hover { background: #1d4ed8; }
+    .nudge-btn:disabled { opacity: .55; cursor: not-allowed; }
     .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; animation: pulse 2s ease-in-out infinite; }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
@@ -178,6 +181,7 @@
     <div class="refresh-area">
       <span class="dot"></span>
       <span id="last-updated">Loading…</span>
+      <button class="nudge-btn" id="nudge-btn" onclick="kickNudge()" title="Run Msg-4 now: scan completed AHS jobs (~30h) and send eligible survey nudges">✉ Scan &amp; nudge now</button>
       <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
     </div>
   </header>
@@ -223,6 +227,9 @@
   // FALLBACKS (pre-GAS): published CSV of the "Review Tracker" tab + Make resolve webhook.
   const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ_ET0tI7CyDMdDOtXP9MOyFZnIbkgrnIaZ2V0el70eMGo9tX8hA3vq58tMT-JOhZad_OCQeqG_X5X7/pub?gid=0&single=true&output=csv';
   const RESOLVE_WEBHOOK = 'https://hook.us2.make.com/gmqonk8heubt9vq22xbstpsqve8o6mpu';
+  // On-demand Msg-4 kick (Make webhook). Secret is invisible to workers — baked in like GAS_SECRET.
+  const NUDGE_KICK_URL = 'https://hook.us2.make.com/wi4o8od7uoab6j8l2vhjbmp13ros6lgh';
+  const NUDGE_KICK_SECRET = 'RfNudgeKick7Qx2mK9pL';
   const REFRESH_MS = 60000;
   const ACTIVE_DAYS = 5;                                 // rows older than this (since completion) drop out of "Active only"
 
@@ -675,6 +682,24 @@
   function toggleSelectAll(cb) { document.querySelectorAll('.row-check').forEach(c => { c.checked = cb.checked; }); updateSel(); }
 
   function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
+
+  // Kick Msg-4 on demand (same logic as the 2pm/7pm pinger). Confirm to avoid spam-clicks.
+  async function kickNudge() {
+    if (!confirm('Scan completed jobs and send survey nudges now?\n\nEligible AHS customers (last ~30 hours) will get a text. Paused/recall jobs go to the Hold lane instead.')) return;
+    const btn = document.getElementById('nudge-btn');
+    btn.disabled = true;
+    try {
+      // GET + secret (same pattern as CA Sync). no-cors = fire-and-forget; Make still runs.
+      await fetch(`${NUDGE_KICK_URL}?secret=${encodeURIComponent(NUDGE_KICK_SECRET)}&_=${Date.now()}`, {
+        method: 'GET', mode: 'no-cors', cache: 'no-store'
+      });
+      toast('Nudge started — refresh this page in ~2 minutes');
+    } catch (err) {
+      toast('⚠️ Could not start nudge — ' + err.message);
+    } finally {
+      setTimeout(() => { btn.disabled = false; }, 8000);   // brief cooldown
+    }
+  }
 
   async function markDone() {
     const cids = selectedCids();
