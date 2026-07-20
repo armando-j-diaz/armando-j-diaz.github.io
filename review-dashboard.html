@@ -217,7 +217,7 @@
   // ─────────────────────────────────────
   //  CONFIG
   // ─────────────────────────────────────
-  const PASSWORD = 'worker2026';                         // same gate as intake dashboard
+  const PASSWORD = 'JetADMIN';
   // Apps Script web app on the Review Tracker spreadsheet (see WIP/review-tracker-gas.gs).
   // Instant reads (no publish lag) + realtime writes, zero Make ops. Until pasted, the
   // dashboard falls back to the published CSV for reads and the Make webhook for writes.
@@ -683,7 +683,7 @@
 
   function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
 
-  // Kick Msg-4 on demand (same logic as the 2pm/7pm pinger). Confirm to avoid spam-clicks.
+  // Kick Msg-4 on demand (same logic as the daily 3pm pinger). Confirm to avoid spam-clicks.
   async function kickNudge() {
     if (!confirm('Scan completed jobs and send survey nudges now?\n\nEligible AHS customers (last ~30 hours) will get a text. Paused/recall jobs go to the Hold lane instead.')) return;
     const btn = document.getElementById('nudge-btn');
