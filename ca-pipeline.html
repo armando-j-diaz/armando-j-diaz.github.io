@@ -115,8 +115,12 @@
   .authorize-btn:hover { background: #3b1010; color: #fff; }
 
   /* Send Pipeline to Dispatch (header) */
-  .pushdispatch-btn { background: #042f2e; color: #5eead4; border: 1px solid #0f766e; border-radius: 8px; padding: 8px 16px; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
-  .pushdispatch-btn:hover { background: #0a3f3c; }
+  /* Demoted 2026-07-26: this is the backstop, not a primary action — the sheet
+     pushes each stage change to Dispatch in realtime. Kept visible (not deleted)
+     because a silent push failure would otherwise get overwritten by the next
+     Dispatch → Pipeline sync, which wins on conflict. */
+  .pushdispatch-btn { background: transparent; color: #5eead4; border: 1px solid #134e4a; border-radius: 6px; padding: 4px 9px; font-size: 0.65rem; font-weight: 600; cursor: pointer; opacity: 0.65; }
+  .pushdispatch-btn:hover { background: #0a3f3c; opacity: 1; }
   .pushdispatch-btn:disabled { opacity: 0.5; cursor: wait; }
 
   .followup-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
@@ -188,8 +192,8 @@
     </div>
     <div class="sync-status sync-busy" id="sync-status">⬤ Loading…</div>
     <div class="badge-count" id="total-count">— jobs</div>
-    <button class="sync-btn" id="sync-btn" onclick="syncNow()" title="Pull paused jobs from Dispatch into the sheet right now">🔄 Sync Dispatch</button>
-    <button class="pushdispatch-btn" id="pushdispatch-btn" onclick="pushPipelineToDispatch()" title="Write every card's stage as a tag onto its Dispatch job">🏷️ Send Pipeline to Dispatch</button>
+    <button class="sync-btn" id="sync-btn" onclick="syncNow()" title="Pull paused Dispatch jobs in: adds new cards, moves cards whose Dispatch tag changed, clears finished ones">🔄 Sync Dispatch → Pipeline</button>
+    <button class="pushdispatch-btn" id="pushdispatch-btn" onclick="pushPipelineToDispatch()" title="Backup only — stage changes already push to Dispatch automatically. Use this if a card's tag looks out of date in Dispatch.">🏷️ Pipeline → Dispatch (backup)</button>
     <button class="sendall-btn" id="sendall-btn" onclick="sendAll()">📨 Send All Updates</button>
     <button class="add-btn" onclick="openModal()">+ Add Job</button>
   </div>
@@ -426,15 +430,16 @@ async function syncNow() {
     const res = await fetch(SYNC_WEBHOOK_URL);
     const data = await res.json();
     const n = parseInt(data.inserted) || 0;
+    const m = parseInt(data.restaged) || 0;   // v6: cards moved by a Dispatch tag change
     const p = parseInt(data.pruned) || 0;
-    btn.textContent = (n > 0 || p > 0)
-      ? `✓ ${n} added · ${p} cleared`
+    btn.textContent = (n > 0 || m > 0 || p > 0)
+      ? `✓ ${n} added · ${m} moved · ${p} cleared`
       : '✓ Up to date';
     await loadFromSheet();
   } catch(e) {
     btn.textContent = '⚠️ Sync failed — retry';
   }
-  setTimeout(() => { btn.textContent = '🔄 Sync Dispatch'; btn.disabled = false; }, 4000);
+  setTimeout(() => { btn.textContent = '🔄 Sync Dispatch → Pipeline'; btn.disabled = false; }, 4000);
 }
 
 // ─── PUSH PIPELINE → DISPATCH (write every card's stage as a tag) ──────────
@@ -453,7 +458,7 @@ async function pushPipelineToDispatch() {
   } catch(e) {
     btn.textContent = '⚠️ Push failed — retry';
   }
-  setTimeout(() => { btn.textContent = '🏷️ Send Pipeline to Dispatch'; btn.disabled = false; }, 5000);
+  setTimeout(() => { btn.textContent = '🏷️ Pipeline → Dispatch (backup)'; btn.disabled = false; }, 5000);
 }
 
 // ─── STATUS MESSAGE SENDING (manual, ledger-gated) ────────
