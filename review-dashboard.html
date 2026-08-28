@@ -198,6 +198,7 @@
     </div>
     <button type="button" class="filter-btn filter-btn-dev active" id="active-filter" onclick="toggleActiveOnly()" title="Dev: hide resolved/closed and jobs 5+ days past completion (needs-human always stays)">Active only</button>
     <button type="button" class="filter-btn filter-btn-dev active" id="human-filter" onclick="toggleHumanFilter()" title="Dev: only rows that need a human">Needs human</button>
+    <button type="button" class="filter-btn filter-btn-dev" id="stale-filter" onclick="toggleStale()" title="Old jobs are hidden by default. Click to show jobs completed more than 7 days ago.">Show old</button>
     <span class="sel-label" id="sel-label">0 selected</span>
     <button type="button" class="filter-btn btn-done" id="done-btn" onclick="markDone()" disabled>✓ Mark Done (<span id="sel-count">0</span>)</button>
     <span class="record-count" id="record-count"></span>
@@ -232,6 +233,7 @@
   const NUDGE_KICK_SECRET = 'RfNudgeKick7Qx2mK9pL';
   const REFRESH_MS = 60000;
   const ACTIVE_DAYS = 5;                                 // rows older than this (since completion) drop out of "Active only"
+  const STALE_DAYS  = 7;                                 // job completed more than this many days ago = stale, hidden from both views
 
   // Append-only log column order (row per event). MUST match the sheet header exactly.
   // A timestamp · B event · C stage · D customerId · E jobId · F jobLink · G workOrder
@@ -254,6 +256,7 @@
   // ─────────────────────────────────────
   let allData = [], filteredData = [], refreshTimer = null;
   let activeStage = null, humanOnly = true, activeOnly = true, visitFilter = null;
+  let showStale = false;                                 // "Show old" toggle — off = stale rows hidden
 
   // ─────────────────────────────────────
   //  AUTH
@@ -402,6 +405,7 @@
     let todo = 0, done = 0;
     for (const r of allData) {
       if (tabOf(r) !== tab) continue;
+      if (hideStale(r)) continue;
       const b = bucketOf(r);
       if (tab === 'multi' ? (b === 'paused' && isActive(r)) : b === 'human') todo++;
       else if (b === 'resolved' && r.resolvedAt) {
@@ -422,6 +426,28 @@
     if (!ref) return true;
     const days = (Date.now() - new Date(ref).getTime()) / 86400000;
     return isNaN(days) ? true : days <= ACTIVE_DAYS;
+  }
+
+  // ── Stale cutoff: anything whose job finished more than STALE_DAYS ago is off the screen.
+  // Resolved rows are exempt (the Done column ages them out on its own timer).
+  function ageDays(r) {
+    const ref = r.completedAt || r.askedAt || r.msg1SentAt || r.replyAt;
+    if (!ref) return NaN;                                // no date at all → never auto-hide
+    return (Date.now() - new Date(ref).getTime()) / 86400000;
+  }
+  function isStale(r) {
+    if (r.resolvedAt) return false;
+    const d = ageDays(r);
+    return !isNaN(d) && d > STALE_DAYS;
+  }
+  const hideStale = r => !showStale && isStale(r);       // the actual filter test
+  function staleCount() {
+    return allData.filter(r => isStale(r) && (!visitFilter || tabOf(r) === visitFilter)).length;
+  }
+  function toggleStale() {
+    showStale = !showStale;
+    document.getElementById('stale-filter').classList.toggle('active', showStale);
+    renderFunnel(); applyFilters();
   }
 
   function toggleActiveOnly() {
@@ -451,6 +477,13 @@
       el.classList.toggle('done', st.todo === 0);
       el.innerHTML = label + (st.todo === 0 ? ' ✓' : ` · ${st.todo}`);
     }
+    const sf = document.getElementById('stale-filter');
+    if (sf) {
+      const n = staleCount();
+      sf.textContent = showStale ? `Hide old (${n})` : `Show old (${n})`;
+      sf.style.display = (n || showStale) ? '' : 'none';
+      sf.classList.toggle('active', showStale);
+    }
     // Bulk select + Mark Done only apply to the 1-Visit table (kanban has per-card Back/Done)
     const showBulk = visitFilter === 'single';
     document.getElementById('sel-label').style.display = showBulk ? '' : 'none';
@@ -476,7 +509,7 @@
     const q = document.getElementById('search-box').value.toLowerCase();
     const hayOf = r => [r.customerName, r.jobTitle, r.jobId, r.replyText, r.city].join(' ').toLowerCase();
     if (visitFilter === 'multi') {   // kanban view: search only — the columns ARE the state filter
-      filteredData = allData.filter(r => tabOf(r) === 'multi' && (!q || hayOf(r).includes(q)));
+      filteredData = allData.filter(r => tabOf(r) === 'multi' && !hideStale(r) && (!q || hayOf(r).includes(q)));
       renderKanban(); return;
     }
     // Drilling into a specific stage card shows that whole bucket, ignoring the Active-only cap.
@@ -484,6 +517,7 @@
     filteredData = allData.filter(r => {
       const b = bucketOf(r);
       return tabOf(r) === 'single'
+        && !hideStale(r)
         && (!q || hayOf(r).includes(q))
         && (!activeStage || b === activeStage)
         && (!humanOnly || b === 'human')
@@ -503,7 +537,7 @@
   // ─────────────────────────────────────
   function counts() {   // lifetime funnel totals (all data)
     const c = { asked:0, replied:0, happy:0, sent:0, human:0, paused:0 };
-    allData.forEach(r => { const b = bucketOf(r); if (b in c) c[b]++; });
+    allData.forEach(r => { if (hideStale(r)) return; const b = bucketOf(r); if (b in c) c[b]++; });
     return c;
   }
   function renderAB() {   // nudge A/B readout (UI hidden via CSS — flip .abtest to display:flex to restore)
