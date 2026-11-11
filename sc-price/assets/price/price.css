@@ -34,7 +34,12 @@
 .pt-tier.is-chosen{border-color:var(--color-action);box-shadow:0 0 0 3px rgba(232,145,15,.22)}
 .pt-tag{position:absolute;top:-.8rem;left:1rem;background:var(--navy);color:#fff;font-size:var(--text-xs);font-weight:700;padding:.2rem .7rem;border-radius:var(--radius-pill)}
 .pt-tier h3{font-family:var(--font-display);color:var(--navy);font-size:var(--text-lg);margin:0}
-.pt-tier-photo{display:block;width:100%;aspect-ratio:4/3;height:auto;object-fit:cover;border-radius:10px;margin:0 0 .85rem}
+.pt-product-rotator{position:relative;aspect-ratio:4/3;overflow:hidden;background:#fefefe}
+.pt-tier .pt-product-rotator{border:1px solid #e3ebf2;border-radius:10px;margin:0 0 .85rem}
+.pt-product-photo{position:absolute;inset:0;width:100%;height:100%;padding:.55rem;object-fit:contain;opacity:0;transition:opacity .35s ease}
+#pt-stage[data-product-brand="trane"] .pt-product-photo--trane,
+#pt-stage[data-product-brand="carrier"] .pt-product-photo--carrier,
+#pt-stage[data-product-brand="goodman"] .pt-product-photo--goodman{opacity:1}
 .pt-speed{font-weight:700;color:var(--deep-blue);font-size:var(--text-sm);margin:.1rem 0 .6rem;text-transform:uppercase;letter-spacing:.04em}
 .pt-hook{font-weight:700;margin:0 0 .4rem;color:var(--navy)}
 .pt-body{font-size:var(--text-sm);color:var(--color-text-muted);margin:0 0 .8rem}
@@ -63,11 +68,9 @@
 .pt-sum{border:2px solid var(--navy);border-radius:18px;padding:1.25rem;background:#fff}
 .pt-estimate-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);align-items:start;gap:1rem}
 .pt-estimate-photo{margin:0;border:1px solid #d5e0ea;border-radius:14px;overflow:hidden}
-.pt-estimate-photo img{display:block;width:100%;height:auto}
 .pt-estimate-photo figcaption{padding:.55rem .75rem;color:var(--color-text-muted);font-size:var(--text-xs)}
 @media (max-width:620px){
   .pt-estimate-layout{grid-template-columns:1fr}
-  .pt-estimate-photo img{aspect-ratio:4/3;object-fit:cover}
 }
 .pt-sum-rows{list-style:none;margin:0;padding:0}
 .pt-sum-rows li{display:flex;justify-content:space-between;gap:1rem;padding:.45rem 0;border-bottom:1px solid #e3ebf2;font-size:var(--text-sm)}
@@ -143,7 +146,7 @@ body.pt-has-bar{padding-bottom:4.5rem}
 .pt-banner{margin-bottom:1rem}
 .pt-err{color:#b42318;font-weight:700}
 @media (max-width:560px){.pt-app{border-radius:18px;padding-top:1.25rem;min-height:70vh}.pt-nav{flex-wrap:wrap}.pt-next{flex:1;min-width:0}.pt-h{font-size:var(--text-lg)}}
-@media (prefers-reduced-motion:reduce){.pt-stage,.pt-progress-bar span{transition:none}}
+@media (prefers-reduced-motion:reduce){.pt-stage,.pt-progress-bar span,.pt-product-photo{transition:none}}
 /* phones: keep Back / Continue in view, just above the site's Call / Text bar (71px tall) */
 @media (max-width:899px){
   .pt-nav{position:sticky;bottom:calc(4.6rem + env(safe-area-inset-bottom,0px));z-index:5;background:#fff;margin-inline:calc(-1 * clamp(1rem,4vw,2.5rem));padding:.75rem clamp(1rem,4vw,2.5rem);border-top:1px solid #e3ebf2;margin-top:1.25rem}
