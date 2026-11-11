@@ -9,6 +9,11 @@
   var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var BRANDS = ["goodman", "carrier", "trane", "rheem", "lennox"];
   var PRODUCT_BRANDS = ["trane", "carrier", "goodman"];
+  var PRODUCT_PHOTOS = {
+    standard: { trane: "trane-standard", carrier: "carrier-standard", goodman: "goodman" },
+    comfort: { trane: "trane-comfort", carrier: "carrier", goodman: "goodman-comfort" },
+    premium: { trane: "trane", carrier: "carrier-premium", goodman: "goodman-premium" }
+  };
   var TOUCH = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
   // FLOW = the order of the screens (set "flow" in pricing.json; ?flow= overrides it in preview only)
   //   "after": prices on the 3 cards first, then upgrades, then the estimate (the original)
@@ -238,7 +243,7 @@
         rows.map(function (r) { return "<li><span>" + esc(r[0]) + "</span><span>" + (r[1] || (PREVIEW ? missing() : "At your visit")) + "</span></li>"; }).join("") +
         '</ul><div class="pt-total"><span>Estimated total</span><strong>' + (total ? rangeText(total) : (PREVIEW ? missing("$ — to $ —") : "At your free visit")) + "</strong></div>" + monthlyLine(total) +
         '<p class="pt-note">This is an estimate. We confirm your final price at a free visit to your home, before any work starts. If something at your home changes the price, we explain why and give you the new price in writing first.</p></div>' +
-        (PRICE_ON_ESTIMATE ? '<figure class="pt-estimate-photo">' + productPhotos() + '<figcaption>Example outdoor units</figcaption></figure></div>' : "") +
+        (PRICE_ON_ESTIMATE ? '<figure class="pt-estimate-photo">' + productPhotos(t.id) + '<figcaption>Example ' + esc(t.name) + ' outdoor units</figcaption></figure></div>' : "") +
         (preciseQuestions().length ? '<button type="button" class="pt-link pt-link--est" id="pt-precise-est">Change my home details</button>' : "") +
         '<div class="pt-ask"><h3>Want us to call you to talk through these options?</h3><p class="pt-sub">No pressure. We answer your questions and set up your free visit if you want one.</p>' +
         '<div class="pt-ask-btns"><button type="button" class="btn btn-primary" id="pt-yes">Yes, call me</button><button type="button" class="btn btn-outline" id="pt-no">No thanks</button></div></div>' +
@@ -361,9 +366,11 @@
     var imgs = w.querySelectorAll("img"), i = 0;
     startBrandFade.t = setInterval(function () { if (!document.body.contains(w)) return clearInterval(startBrandFade.t); imgs[i].classList.remove("on"); i = (i + 1) % imgs.length; imgs[i].classList.add("on"); }, 2600);
   }
-  function productPhotos() {
+  function productPhotos(tier) {
+    var photos = PRODUCT_PHOTOS[tier];
+    if (!photos) return "";
     return '<div class="pt-product-rotator" aria-hidden="true">' + PRODUCT_BRANDS.map(function (brand) {
-      return '<img class="pt-product-photo pt-product-photo--' + brand + '" src="/sc-price/assets/price/products/' + brand + '.webp" alt="">';
+      return '<img class="pt-product-photo pt-product-photo--' + brand + '" src="/sc-price/assets/price/products/' + photos[brand] + '.webp" alt="">';
     }).join("") + "</div>";
   }
   function startProductFade(stage) {
@@ -393,7 +400,7 @@
     var price = r ? rangeText(r) : (PREVIEW ? missing("$ — to $ —") : "Price at your free visit");
     var label = FLOW === "after" ? "Customize " : "Pick ";
     return '<article class="pt-tier' + (t.pick ? " is-pick" : "") + '">' + (t.pick ? '<span class="pt-tag">Our team\'s pick</span>' : "") +
-      (PRICE_ON_ESTIMATE ? productPhotos() : "") +
+      (PRICE_ON_ESTIMATE ? productPhotos(t.id) : "") +
       "<h3>" + esc(t.name) + '</h3><p class="pt-speed">' + esc(t.speed) + '</p><p class="pt-hook">' + esc(t.hook) + '</p><p class="pt-body">' + esc(t.body) + "</p>" +
       (PRICE_ON_ESTIMATE ? "" : '<p class="pt-price">' + price + "</p>" + monthlyLine(r)) +
       '<ul class="pt-feat">' + feats.filter(Boolean).map(function (f) { return "<li>" + f + "</li>"; }).join("") + "</ul>" +
