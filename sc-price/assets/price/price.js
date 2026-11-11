@@ -3,7 +3,7 @@
 (function () {
   "use strict";
   var S = null;
-  var st = { size: null, system: null, tier: null, addons: {}, precise: {}, preciseStep: 0, photo: null, contact: null, screen: "intro", history: [] };
+  var st = { size: null, system: null, tier: null, addons: {}, precise: {}, preciseStep: 0, contact: null, screen: "intro", history: [] };
   var loadedAt = Date.now();
   var PREVIEW = true; // review copy: always preview, never sends
   var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -16,7 +16,7 @@
   var FLOWS = { after: "Prices first", before: "Upgrades first", last: "Price at the end" };
   var FLOW = "after";
   var STEPS = ["size", "system", "prices", "addons", "estimate", "contact", "done"];
-  var STEP_LABEL = { size: "Home size", system: "Your system", prices: "Your prices", precise: "Your prices", addons: "Upgrades", estimate: "Your estimate", contact: "Contact", special: "Contact", done: "Done" };
+  var STEP_LABEL = { size: "Home size", system: "Your system", prices: "Your prices", addons: "Upgrades", estimate: "Your estimate", contact: "Contact", special: "Contact", done: "Done" };
   function setFlow(f) {
     FLOW = FLOWS[f] ? f : "after";
     STEPS = FLOW === "before" ? ["size", "system", "addons", "prices", "estimate", "contact", "done"] : ["size", "system", "prices", "addons", "estimate", "contact", "done"];
@@ -85,11 +85,14 @@
     bar.hidden = false;
     var key = screen === "precise" ? st.history[st.history.length - 1] : screen === "special" ? "contact" : screen;
     var i = STEPS.indexOf(key); if (i < 0) return;
-    var pct = Math.round(((i + 1) / STEPS.length) * 100);
+    var count = preciseQuestions().length;
+    if (i > STEPS.indexOf("system")) i += count;
+    if (screen === "precise" && key === "system") i += st.preciseStep + 1;
+    var pct = Math.round(((i + 1) / (STEPS.length + count)) * 100);
     $("pt-progress-fill").style.width = pct + "%";
     bar.setAttribute("aria-valuenow", String(pct));
     $("pt-progress-label").textContent = screen === "precise"
-      ? "Home details · " + (st.preciseStep + 1) + " of " + (preciseQuestions().length + 1)
+      ? "Home details · " + (st.preciseStep + 1) + " of " + count
       : STEP_LABEL[screen] || "";
   }
   function go(screen, opts) {
@@ -114,7 +117,11 @@
     stage.classList.add("is-out");
     setTimeout(swap, 260);
   }
-  function back() { var prev = st.history.pop() || "intro"; go(prev, { back: true }); }
+  function back() {
+    var prev = st.history.pop() || "intro";
+    if (prev === "precise") st.preciseStep = preciseQuestions().length - 1;
+    go(prev, { back: true });
+  }
   function openPrecise() {
     if ($("pt-stage").classList.contains("is-out")) return;
     st.preciseStep = 0;
@@ -141,17 +148,17 @@
   var SCREENS = {
     intro: function () {
       return '<div class="pt-screen pt-intro"><p class="eyebrow">New AC prices</p><h1 class="display">New AC prices for your Miami home</h1>' +
-        '<p class="lede">Answer two quick questions and see real price ranges from our team. No phone number needed.</p>' +
+        '<p class="lede">Answer a few quick questions to get an estimate. No phone number needed.</p>' +
         '<button type="button" class="btn btn-primary pt-start" id="pt-start">See what a new AC costs for your home</button>' +
-        '<p class="pt-fine">Takes about a minute. We confirm your price at a free visit to your home, before any work starts.</p></div>';
+        '<p class="pt-fine">We confirm your price at a free visit before any work starts.</p></div>';
     },
     size: function () {
       return '<div class="pt-screen"><h2 class="pt-h">How big is your home?</h2><p class="pt-help">Count the living space you cool. A good guess is fine.</p>' +
         tiles("size", S.sizes, false, function (x) { return esc(x.label); }, st.size) + nav("Back", "Continue", "pt-next", !st.size) + "</div>";
     },
     system: function () {
-      return '<div class="pt-screen"><h2 class="pt-h">What kind of system do you have now?</h2><p class="pt-help">Pick the one that looks most like your home.</p>' +
-        tiles("system", S.systems, true, function (x) { return esc(x.label) + "<small>" + esc(x.help) + "</small>"; }, st.system) + nav("Back", "See my prices", "pt-next", !st.system) + "</div>";
+      return '<div class="pt-screen"><h2 class="pt-h">What kind of system do you have now?</h2>' +
+        tiles("system", S.systems, true, function (x) { return esc(x.label); }, st.system) + nav("Back", "Continue", "pt-next", !st.system) + "</div>";
     },
     prices: function () {
       var t = tons(), sz = "For a " + t + "-ton system" + (st.system === "unsure" ? ", inside and outside unit" : "");
@@ -171,19 +178,12 @@
         '<p class="pt-sub">' + sub + "</p>" +
         '<p class="pt-teaser">' + teaser + "</p>" +
         '<div class="pt-tiers">' + S.tiers.map(tierCard).join("") + "</div>" + brandStrip() +
-        (FLOW === "last" ? "" : (preciseQuestions().length ? '<button type="button" class="pt-link" id="pt-precise-open">' : '<button type="button" class="pt-link" id="pt-precise-open" hidden>') + (Object.keys(st.precise).length ? "Change my home details" : "Get a more precise price (optional)") + "</button>" +
-        '<p class="pt-help pt-foot">*Monthly payments are an estimate. They depend on approval by the lender.</p>') +
+        (preciseQuestions().length ? '<button type="button" class="pt-link" id="pt-precise-open">Change my home details</button>' : "") +
+        (FLOW === "last" ? "" : '<p class="pt-help pt-foot">*Monthly payments are an estimate. They depend on approval by the lender.</p>') +
         nav(FLOW === "before" ? "Change my upgrades" : "Change my answers", null) + "</div>";
     },
     precise: function () {
       var question = preciseQuestions()[st.preciseStep];
-      if (!question) {
-        return '<div class="pt-screen"><h2 class="pt-h">Add a photo of your outside unit’s label?</h2>' +
-          '<p class="pt-help">Optional. The sticker on the side tells us the size of your current system.</p>' +
-          '<div class="pt-step"><label for="pt-photo">Choose a photo</label> <input class="pt-file" type="file" id="pt-photo" accept="image/*">' +
-          (st.photo ? '<p class="pt-help">Added: ' + esc(st.photo) + "</p>" : "") + "</div>" +
-          nav("Back", "Update my prices", "pt-next", false) + "</div>";
-      }
       var answer = st.precise[question.id];
       var options = question.options.map(function (o) { return { id: o[0], label: o[1] }; });
       return '<div class="pt-screen"><h2 class="pt-h">' + esc(question.label) + '</h2>' +
@@ -222,7 +222,7 @@
         rows.map(function (r) { return "<li><span>" + esc(r[0]) + "</span><span>" + (r[1] || (PREVIEW ? missing() : "At your visit")) + "</span></li>"; }).join("") +
         '</ul><div class="pt-total"><span>Estimated total</span><strong>' + (total ? rangeText(total) : (PREVIEW ? missing("$ — to $ —") : "At your free visit")) + "</strong></div>" + monthlyLine(total) +
         '<p class="pt-note">This is an estimate. We confirm your final price at a free visit to your home, before any work starts. If something at your home changes the price, we explain why and give you the new price in writing first.</p></div>' +
-        (preciseQuestions().length ? '<button type="button" class="pt-link pt-link--est" id="pt-precise-est">' + (Object.keys(st.precise).length ? "Change my home details" : "Make it more precise: answer a few questions about your home") + "</button>" : "") +
+        (preciseQuestions().length ? '<button type="button" class="pt-link pt-link--est" id="pt-precise-est">Change my home details</button>' : "") +
         '<div class="pt-ask"><h3>Want us to call you to talk through these options?</h3><p class="pt-sub">No pressure. We answer your questions and set up your free visit if you want one.</p>' +
         '<div class="pt-ask-btns"><button type="button" class="btn btn-primary" id="pt-yes">Yes, call me</button><button type="button" class="btn btn-outline" id="pt-no">No thanks</button></div></div>' +
         nav("Back", null) + "</div>";
@@ -248,8 +248,15 @@
     system: function () {
       bindBack(); bindTiles("system", "pt-next", function (v) { st.system = v; });
       $("pt-next").addEventListener("click", function () {
+        if ($("pt-stage").classList.contains("is-out")) return;
         st.tier = null; ga("price_tool_result", { size: st.size, system: st.system });
-        var s = sysObj(); go(!s.priced || !tons() ? "special" : FLOW === "before" ? "addons" : "prices");
+        var questions = preciseQuestions();
+        Object.keys(st.precise).forEach(function (id) {
+          if (!questions.some(function (q) { return q.id === id; })) delete st.precise[id];
+        });
+        if (!sysObj().priced || !tons()) go("special");
+        else if (questions.length) openPrecise();
+        else go(FLOW === "before" ? "addons" : "prices");
       });
     },
     prices: function () {
@@ -262,7 +269,8 @@
     },
     precise: function () {
       var stage = $("pt-stage");
-      var question = preciseQuestions()[st.preciseStep];
+      var questions = preciseQuestions();
+      var question = questions[st.preciseStep];
       var next = $("pt-next");
       var skip = $("pt-skip");
       stage.querySelector("[data-back]").addEventListener("click", function () {
@@ -273,21 +281,22 @@
       });
       function advance(clearAnswer) {
         if (stage.classList.contains("is-out")) return;
-        if (!question) { back(); return; }
         if (clearAnswer) delete st.precise[question.id];
+        if (st.preciseStep === questions.length - 1) {
+          if (st.history[st.history.length - 1] === "system") go(FLOW === "before" ? "addons" : "prices");
+          else back();
+          return;
+        }
         st.preciseStep++;
         go("precise");
       }
-      if (question) {
-        bindTiles("pt-detail", "pt-next", function (value) {
-          st.precise[question.id] = value;
-          ga("price_tool_precise", { q: question.id });
-          next.textContent = "Continue";
-          skip.hidden = false;
-        });
-        skip.addEventListener("click", function () { advance(true); });
-      }
-      var ph = $("pt-photo"); if (ph) ph.addEventListener("change", function () { st.photo = ph.files && ph.files[0] ? ph.files[0].name : null; });
+      bindTiles("pt-detail", "pt-next", function (value) {
+        st.precise[question.id] = value;
+        ga("price_tool_precise", { q: question.id });
+        next.textContent = "Continue";
+        skip.hidden = false;
+      });
+      skip.addEventListener("click", function () { advance(true); });
       next.addEventListener("click", function () { advance(false); });
     },
     addons: function () {
@@ -307,7 +316,7 @@
     special: function () { st.contact = "call"; bindBack(); bindLead(); },
     done: function () {
       $("pt-restart").addEventListener("click", function () {
-        st.size = st.system = st.tier = st.contact = st.photo = null; st.addons = {}; st.precise = {}; st.history = [];
+        st.size = st.system = st.tier = st.contact = null; st.addons = {}; st.precise = {}; st.history = [];
         var bar = $("pt-bar"); if (bar) { bar.remove(); document.body.classList.remove("pt-has-bar"); }
         go("intro", { back: true });
       });
@@ -362,7 +371,6 @@
     var ad = S.addons.filter(function (a) { return st.addons[a.id]; }).map(function (a) { return a.name; });
     if (ad.length) parts.push("Add-ons: " + ad.join(", "));
     Object.keys(st.precise).forEach(function (k) { parts.push(k.replace("_", " ") + ": " + st.precise[k]); });
-    if (st.photo) parts.push("Has a label photo (ask them to send it)");
     return parts.join(" | ");
   }
   function bindLead() {

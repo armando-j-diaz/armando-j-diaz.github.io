@@ -60,27 +60,23 @@
  "systems": [
   {
    "id": "split",
-   "label": "An inside unit and an outside unit",
-   "help": "A unit in a closet, attic or garage, plus one outside. This is the most common setup.",
+   "label": "One unit inside and one outside",
    "priced": true
   },
   {
    "id": "package",
-   "label": "One unit outside or on the roof",
-   "help": "Everything is in one big box outside the house.",
+   "label": "One outdoor unit only",
    "priced": true
   },
   {
    "id": "ductless",
-   "label": "Wall units (ductless)",
-   "help": "Units on the wall in each room, with no air ducts.",
+   "label": "Ductless wall units",
    "priced": false,
    "note": "Ductless prices depend on how many rooms you want cooled. Tell us a little about your home and we'll send you prices."
   },
   {
    "id": "unsure",
    "label": "Not sure",
-   "help": "That's fine. We'll show the most common setup and confirm at your free visit.",
    "priced": true,
    "use": "split"
   }
@@ -303,7 +299,7 @@
    ]
   }
  ],
- "_questions_note": "The 'more precise price' questions. Live site: a question only shows if one of its answers has an extra cost below (preview shows them all). only_for = system types that see it.",
+ "_questions_note": "Home details asked before the estimate. Live site: a question only shows if one of its answers has an extra cost below (preview shows them all). only_for = system types that see it.",
  "adjustments": [
   {
    "id": "attic",
