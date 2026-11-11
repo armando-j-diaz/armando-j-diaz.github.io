@@ -10,9 +10,9 @@
   var BRANDS = ["goodman", "carrier", "trane", "rheem", "lennox"];
   var PRODUCT_BRANDS = ["trane", "carrier", "goodman"];
   var PRODUCT_PHOTOS = {
-    standard: { trane: "trane-standard", carrier: "carrier-standard", goodman: "goodman" },
-    comfort: { trane: "trane-comfort", carrier: "carrier", goodman: "goodman-comfort" },
-    premium: { trane: "trane", carrier: "carrier-premium", goodman: "goodman-premium" }
+    standard: { trane: "trane-standard.webp", carrier: "carrier-standard.webp", goodman: "goodman.webp" },
+    comfort: { trane: "trane-comfort.webp", carrier: "carrier.webp", goodman: "goodman-comfort.webp" },
+    premium: { trane: "trane.webp", carrier: "carrier-premium.webp", goodman: "goodman-premium.webp?v=gsxc16" }
   };
   var TOUCH = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
   // FLOW = the order of the screens (set "flow" in pricing.json; ?flow= overrides it in preview only)
@@ -370,7 +370,7 @@
     var photos = PRODUCT_PHOTOS[tier];
     if (!photos) return "";
     return '<div class="pt-product-rotator" aria-hidden="true">' + PRODUCT_BRANDS.map(function (brand) {
-      return '<img class="pt-product-photo pt-product-photo--' + brand + '" src="/sc-price/assets/price/products/' + photos[brand] + '.webp" alt="">';
+      return '<img class="pt-product-photo pt-product-photo--' + brand + '" src="/sc-price/assets/price/products/' + photos[brand] + '" alt="">';
     }).join("") + "</div>";
   }
   function startProductFade(stage) {
