@@ -34,6 +34,7 @@
 .pt-tier.is-chosen{border-color:var(--color-action);box-shadow:0 0 0 3px rgba(232,145,15,.22)}
 .pt-tag{position:absolute;top:-.8rem;left:1rem;background:var(--navy);color:#fff;font-size:var(--text-xs);font-weight:700;padding:.2rem .7rem;border-radius:var(--radius-pill)}
 .pt-tier h3{font-family:var(--font-display);color:var(--navy);font-size:var(--text-lg);margin:0}
+.pt-tier-photo{display:block;width:100%;aspect-ratio:4/3;height:auto;object-fit:cover;border-radius:10px;margin:0 0 .85rem}
 .pt-speed{font-weight:700;color:var(--deep-blue);font-size:var(--text-sm);margin:.1rem 0 .6rem;text-transform:uppercase;letter-spacing:.04em}
 .pt-hook{font-weight:700;margin:0 0 .4rem;color:var(--navy)}
 .pt-body{font-size:var(--text-sm);color:var(--color-text-muted);margin:0 0 .8rem}
@@ -60,6 +61,14 @@
 .pt-addon-why{display:block;font-size:var(--text-sm);color:var(--color-text-muted);margin-top:.15rem}
 .pt-addon-price{font-weight:700;color:var(--navy);white-space:nowrap;font-variant-numeric:tabular-nums;font-size:var(--text-sm)}
 .pt-sum{border:2px solid var(--navy);border-radius:18px;padding:1.25rem;background:#fff}
+.pt-estimate-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);align-items:start;gap:1rem}
+.pt-estimate-photo{margin:0;border:1px solid #d5e0ea;border-radius:14px;overflow:hidden}
+.pt-estimate-photo img{display:block;width:100%;height:auto}
+.pt-estimate-photo figcaption{padding:.55rem .75rem;color:var(--color-text-muted);font-size:var(--text-xs)}
+@media (max-width:620px){
+  .pt-estimate-layout{grid-template-columns:1fr}
+  .pt-estimate-photo img{aspect-ratio:4/3;object-fit:cover}
+}
 .pt-sum-rows{list-style:none;margin:0;padding:0}
 .pt-sum-rows li{display:flex;justify-content:space-between;gap:1rem;padding:.45rem 0;border-bottom:1px solid #e3ebf2;font-size:var(--text-sm)}
 .pt-sum-rows li span:last-child{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:700}
@@ -122,6 +131,7 @@ body.pt-has-bar{padding-bottom:4.5rem}
 .pt-next{min-width:11rem}
 .pt-next:disabled{opacity:.45;cursor:not-allowed}
 .pt-link{background:none;border:0;padding:.5rem 0;font:inherit;font-weight:700;color:var(--color-link);text-decoration:underline;cursor:pointer;align-self:flex-start;margin-top:1rem}
+.pt-skip-upgrades{margin-top:0}
 .pt-chosen{margin:0 0 .25rem;font-size:var(--text-sm);color:var(--color-text-muted)}
 .pt-done{align-items:center;text-align:center;justify-content:center}
 .pt-done .pt-link{align-self:center}

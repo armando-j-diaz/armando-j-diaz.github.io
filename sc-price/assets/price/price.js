@@ -13,14 +13,19 @@
   //   "after": prices on the 3 cards first, then upgrades, then the estimate (the original)
   //   "before": upgrades first, then the 3 cards with prices that already include them
   //   "last": the 3 cards without prices, then upgrades, and the first price shows on the estimate
-  var FLOWS = { after: "Prices first", before: "Upgrades first", last: "Price at the end" };
+  //   "combined": optional upgrades, then system tiers, then the first price on the estimate
+  var FLOWS = { after: "Prices first", before: "Upgrades first", last: "Price at the end", combined: "Final preview" };
   var FLOW = "after";
+  var UPGRADES_FIRST = false;
+  var PRICE_ON_ESTIMATE = false;
   var STEPS = ["size", "system", "prices", "addons", "estimate", "contact", "done"];
   var STEP_LABEL = { size: "Home size", system: "Your system", prices: "Your prices", addons: "Upgrades", estimate: "Your estimate", contact: "Contact", special: "Contact", done: "Done" };
   function setFlow(f) {
     FLOW = FLOWS[f] ? f : "after";
-    STEPS = FLOW === "before" ? ["size", "system", "addons", "prices", "estimate", "contact", "done"] : ["size", "system", "prices", "addons", "estimate", "contact", "done"];
-    STEP_LABEL.prices = FLOW === "last" ? "Pick a system" : "Your prices";
+    UPGRADES_FIRST = FLOW === "before" || FLOW === "combined";
+    PRICE_ON_ESTIMATE = FLOW === "last" || FLOW === "combined";
+    STEPS = UPGRADES_FIRST ? ["size", "system", "addons", "prices", "estimate", "contact", "done"] : ["size", "system", "prices", "addons", "estimate", "contact", "done"];
+    STEP_LABEL.prices = PRICE_ON_ESTIMATE ? "Pick a system" : "Your prices";
   }
   function joinAnd(l) { return l.length < 2 ? l.join("") : l.slice(0, -1).join(", ") + " and " + l[l.length - 1]; }
   function chosenAddons() { return S.addons.filter(function (a) { return st.addons[a.id]; }); }
@@ -163,7 +168,9 @@
     prices: function () {
       var t = tons(), sz = "For a " + t + "-ton system" + (st.system === "unsure" ? ", inside and outside unit" : "");
       var head, sub, teaser;
-      if (FLOW === "last") {
+      if (FLOW === "combined") {
+        head = "Pick your system"; sub = sz + ". Choose an option to see your estimate.";
+      } else if (FLOW === "last") {
         head = "Pick your system"; sub = sz + ". Your price comes after the next step.";
         teaser = "Pick one to see the upgrades we recommend in Miami, and your price.";
       } else if (FLOW === "before") {
@@ -176,11 +183,12 @@
       }
       return '<div class="pt-screen pt-screen--wide"><h2 class="pt-h">' + head + "</h2>" +
         '<p class="pt-sub">' + sub + "</p>" +
-        '<p class="pt-teaser">' + teaser + "</p>" +
+        (teaser ? '<p class="pt-teaser">' + teaser + "</p>" : "") +
+        (PRICE_ON_ESTIMATE ? '<p class="pt-help">Photos show examples. We confirm the exact brand and model in your quote.</p>' : "") +
         '<div class="pt-tiers">' + S.tiers.map(tierCard).join("") + "</div>" + brandStrip() +
         (preciseQuestions().length ? '<button type="button" class="pt-link" id="pt-precise-open">Change my home details</button>' : "") +
-        (FLOW === "last" ? "" : '<p class="pt-help pt-foot">*Monthly payments are an estimate. They depend on approval by the lender.</p>') +
-        nav(FLOW === "before" ? "Change my upgrades" : "Change my answers", null) + "</div>";
+        (PRICE_ON_ESTIMATE ? "" : '<p class="pt-help pt-foot">*Monthly payments are an estimate. They depend on approval by the lender.</p>') +
+        nav(UPGRADES_FIRST ? "Change my upgrades" : "Change my answers", null) + "</div>";
     },
     precise: function () {
       var question = preciseQuestions()[st.preciseStep];
@@ -194,23 +202,28 @@
     },
     addons: function () {
       var t = tierObj(st.tier), act = S.addons.filter(function (a) { return a.active; });
-      var price = function (a) { return a.price ? "+" + rangeText(a.price) : (PREVIEW ? missing("+$ —") : "Ask us"); };
+      var price = function (a) {
+        if (FLOW === "combined") return "";
+        return '<span class="pt-addon-price">' + (a.price ? "+" + rangeText(a.price) : PREVIEW ? missing("+$ —") : "Ask us") + "</span>";
+      };
       var rec = act.filter(function (a) { return a.recommended; }).map(function (a) {
         return '<article class="pt-insight"><h3>' + esc(a.name) + '</h3>' +
           (a.problem ? '<p class="pt-insight-k">The problem</p><p>' + esc(a.problem) + "</p>" : "") +
           '<p class="pt-insight-k">What it does</p><p>' + esc(a.fix || a.why) + "</p>" +
-          '<label class="pt-insight-add"><input type="checkbox" value="' + a.id + '"' + (st.addons[a.id] ? " checked" : "") + '><span>Add to my system</span><span class="pt-addon-price">' + price(a) + "</span></label></article>";
+          '<label class="pt-insight-add"><input type="checkbox" value="' + a.id + '"' + (st.addons[a.id] ? " checked" : "") + '><span>Add to my system</span>' + price(a) + "</label></article>";
       }).join("");
       var more = act.filter(function (a) { return !a.recommended; }).map(function (a) {
-        return '<li><label class="pt-addon"><input type="checkbox" value="' + a.id + '"' + (st.addons[a.id] ? " checked" : "") + '><span><span class="pt-addon-name">' + esc(a.name) + '</span><span class="pt-addon-why">' + esc(a.why) + '</span></span><span class="pt-addon-price">' + price(a) + "</span></label></li>";
+        return '<li><label class="pt-addon"><input type="checkbox" value="' + a.id + '"' + (st.addons[a.id] ? " checked" : "") + '><span><span class="pt-addon-name">' + esc(a.name) + '</span><span class="pt-addon-why">' + esc(a.why) + '</span></span>' + price(a) + "</label></li>";
       }).join("");
-      var help = FLOW === "before" ? "Most homeowners only hear about these after something goes wrong. Check the ones you want and we'll add them to your prices on the next screen."
+      var help = FLOW === "combined" ? "Choose any upgrades you’d like to include in your estimate."
+        : FLOW === "before" ? "Most homeowners only hear about these after something goes wrong. Check the ones you want and we'll add them to your prices on the next screen."
         : "Most homeowners only hear about these after something goes wrong. Nothing is added unless you check it.";
-      return '<div class="pt-screen">' + (t ? '<p class="pt-chosen">Your system: <strong>' + esc(t.name) + "</strong></p>" : "") +
-        '<h2 class="pt-h">' + (FLOW === "before" ? "First, " + recCount() + " upgrades we recommend in Miami" : "What we\'d add in a Miami home") + '</h2><p class="pt-help">' + help + "</p>" +
+      return '<div class="pt-screen">' + (t && !UPGRADES_FIRST ? '<p class="pt-chosen">Your system: <strong>' + esc(t.name) + "</strong></p>" : "") +
+        '<h2 class="pt-h">' + (FLOW === "combined" ? "Optional upgrades" : FLOW === "before" ? "First, " + recCount() + " upgrades we recommend in Miami" : "What we\'d add in a Miami home") + '</h2><p class="pt-help">' + help + "</p>" +
+        (FLOW === "combined" ? '<button type="button" class="pt-link pt-skip-upgrades" id="pt-skip-upgrades">Skip upgrades</button>' : "") +
         '<div class="pt-insights">' + rec + "</div>" +
         (more ? '<details class="pt-more"><summary>More options</summary><ul class="pt-addons">' + more + "</ul></details>" : "") +
-        nav("Back", FLOW === "before" ? "See my prices" : FLOW === "last" ? "See my price" : "See my estimate", "pt-next", false) + "</div>";
+        nav("Back", FLOW === "combined" ? "Choose a system" : FLOW === "before" ? "See my prices" : FLOW === "last" ? "See my price" : "See my estimate", "pt-next", false) + "</div>";
     },
     estimate: function () {
       var t = tierObj(st.tier), tr = tierRange(t), base = basePrice(t);
@@ -218,10 +231,12 @@
       adjustments().lines.forEach(function (l) { rows.push([l[0], l[1] ? "+" + rangeText(l[1]) : null]); });
       S.addons.forEach(function (a) { if (st.addons[a.id]) rows.push([a.name, a.price ? "+" + rangeText(a.price) : null]); });
       var total = add(tr, addonRange());
-      return '<div class="pt-screen"><h2 class="pt-h">Your estimate</h2><div class="pt-sum"><ul class="pt-sum-rows">' +
+      return '<div class="pt-screen"><h2 class="pt-h">Your estimate</h2>' +
+        (PRICE_ON_ESTIMATE ? '<div class="pt-estimate-layout">' : "") + '<div class="pt-sum"><ul class="pt-sum-rows">' +
         rows.map(function (r) { return "<li><span>" + esc(r[0]) + "</span><span>" + (r[1] || (PREVIEW ? missing() : "At your visit")) + "</span></li>"; }).join("") +
         '</ul><div class="pt-total"><span>Estimated total</span><strong>' + (total ? rangeText(total) : (PREVIEW ? missing("$ — to $ —") : "At your free visit")) + "</strong></div>" + monthlyLine(total) +
         '<p class="pt-note">This is an estimate. We confirm your final price at a free visit to your home, before any work starts. If something at your home changes the price, we explain why and give you the new price in writing first.</p></div>' +
+        (PRICE_ON_ESTIMATE ? '<figure class="pt-estimate-photo"><img src="/sc-price/assets/price/brands/trane.jpg" width="720" height="720" alt="Trane outdoor AC unit"><figcaption>Example Trane unit</figcaption></figure></div>' : "") +
         (preciseQuestions().length ? '<button type="button" class="pt-link pt-link--est" id="pt-precise-est">Change my home details</button>' : "") +
         '<div class="pt-ask"><h3>Want us to call you to talk through these options?</h3><p class="pt-sub">No pressure. We answer your questions and set up your free visit if you want one.</p>' +
         '<div class="pt-ask-btns"><button type="button" class="btn btn-primary" id="pt-yes">Yes, call me</button><button type="button" class="btn btn-outline" id="pt-no">No thanks</button></div></div>' +
@@ -256,14 +271,14 @@
         });
         if (!sysObj().priced || !tons()) go("special");
         else if (questions.length) openPrecise();
-        else go(FLOW === "before" ? "addons" : "prices");
+        else go(UPGRADES_FIRST ? "addons" : "prices");
       });
     },
     prices: function () {
       bindBack();
       document.querySelectorAll(".pt-tier").forEach(function (card) {
         var b = card.querySelector(".pt-choose");
-        card.addEventListener("click", function (e) { if (e.target.closest("a")) return; st.tier = b.getAttribute("data-tier"); ga("price_tool_tier", { tier: st.tier, flow: FLOW }); go(FLOW === "before" ? "estimate" : "addons"); });
+        card.addEventListener("click", function (e) { if (e.target.closest("a") || $("pt-stage").classList.contains("is-out")) return; st.tier = b.getAttribute("data-tier"); ga("price_tool_tier", { tier: st.tier, flow: FLOW }); go(UPGRADES_FIRST ? "estimate" : "addons"); });
       });
       var po = $("pt-precise-open"); if (po) po.addEventListener("click", openPrecise);
     },
@@ -283,7 +298,7 @@
         if (stage.classList.contains("is-out")) return;
         if (clearAnswer) delete st.precise[question.id];
         if (st.preciseStep === questions.length - 1) {
-          if (st.history[st.history.length - 1] === "system") go(FLOW === "before" ? "addons" : "prices");
+          if (st.history[st.history.length - 1] === "system") go(UPGRADES_FIRST ? "addons" : "prices");
           else back();
           return;
         }
@@ -304,7 +319,16 @@
       document.querySelectorAll('#pt-stage input[type="checkbox"]').forEach(function (c) {
         c.addEventListener("change", function () { st.addons[c.value] = c.checked; ga("price_tool_addon", { addon: c.value, on: c.checked }); });
       });
-      $("pt-next").addEventListener("click", function () { go(FLOW === "before" ? "prices" : "estimate"); });
+      var skip = $("pt-skip-upgrades");
+      if (skip) skip.addEventListener("click", function () {
+        if ($("pt-stage").classList.contains("is-out")) return;
+        st.addons = {};
+        go("prices");
+      });
+      $("pt-next").addEventListener("click", function () {
+        if ($("pt-stage").classList.contains("is-out")) return;
+        go(UPGRADES_FIRST ? "prices" : "estimate");
+      });
     },
     estimate: function () {
       bindBack();
@@ -344,9 +368,12 @@
     if (FLOW === "before") r = add(r, addonRange());
     var price = r ? rangeText(r) : (PREVIEW ? missing("$ — to $ —") : "Price at your free visit");
     var label = FLOW === "after" ? "Customize " : "Pick ";
+    var photos = { standard: "goodman", comfort: "trane", premium: "carrier" };
+    var photo = photos[t.id];
     return '<article class="pt-tier' + (t.pick ? " is-pick" : "") + '">' + (t.pick ? '<span class="pt-tag">Our team\'s pick</span>' : "") +
+      (PRICE_ON_ESTIMATE && photo ? '<img class="pt-tier-photo" src="/sc-price/assets/price/brands/' + photo + '.jpg" width="720" height="720" alt="Example outdoor AC unit">' : "") +
       "<h3>" + esc(t.name) + '</h3><p class="pt-speed">' + esc(t.speed) + '</p><p class="pt-hook">' + esc(t.hook) + '</p><p class="pt-body">' + esc(t.body) + "</p>" +
-      (FLOW === "last" ? "" : '<p class="pt-price">' + price + "</p>" + monthlyLine(r)) +
+      (PRICE_ON_ESTIMATE ? "" : '<p class="pt-price">' + price + "</p>" + monthlyLine(r)) +
       '<ul class="pt-feat">' + feats.filter(Boolean).map(function (f) { return "<li>" + f + "</li>"; }).join("") + "</ul>" +
       '<button type="button" class="btn ' + (t.pick ? "btn-primary" : "btn-outline") + ' pt-choose" data-tier="' + t.id + '">' + label + esc(t.name) + ' <span aria-hidden="true">&rarr;</span></button></article>';
   }
@@ -426,14 +453,14 @@
     b.hidden = false;
   }
   function flowSwitch() {
-    // preview only: buttons to flip between the 3 screen orders
+    // Preview only: keep the earlier screen orders available for comparison.
     if (!PREVIEW) return;
     var app = $("pt-app"); if (!app || $("pt-flows")) return;
     var d = document.createElement("div"); d.className = "pt-flows"; d.id = "pt-flows";
     d.innerHTML = '<span>Version:</span>' + Object.keys(FLOWS).map(function (k, i) {
       var q = location.search.replace(/[?&]flow=\w+/, "").replace(/^&/, "?");
       q = (q && q !== "?" ? q + "&" : "?") + "flow=" + k;
-      return '<a href="' + q + '"' + (k === FLOW ? ' aria-current="true"' : "") + ">" + (i + 1) + ". " + FLOWS[k] + "</a>";
+      return '<a href="' + q + '"' + (k === FLOW ? ' aria-current="true"' : "") + ">" + (k === "combined" ? "" : (i + 1) + ". ") + FLOWS[k] + "</a>";
     }).join("");
     app.parentNode.insertBefore(d, app);
   }

@@ -1,8 +1,8 @@
 {
  "_read_me": "THE ONE PLACE for Sunny Coast prices, fees and offers on the website (rule from 2026-11-08). Change a number here, rebuild, and every page that shows it updates. null = not set yet (the page shows a dash). Prices are [low, high] in dollars. Listings (Google, Yelp, etc.) never get any of these.",
  "updated": "2026-11-10",
- "flow": "after",
- "_flow_note": "Order of the screens. after = prices on the 3 cards, then upgrades. before = upgrades first, then prices that include them. last = the 3 cards without prices, upgrades, then the price. Preview pages can flip with ?flow=.",
+ "flow": "combined",
+ "_flow_note": "Combined: upgrades first, then the 3 system options, then the first price on the estimate. The preview still supports after, before, and last for comparison.",
  "visits": {
   "repair_visit": "free",
   "new_system_visit": "free",
