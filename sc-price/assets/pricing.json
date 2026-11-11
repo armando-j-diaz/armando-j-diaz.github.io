@@ -177,30 +177,200 @@
   "System Workmanship Warranty for as long as you own your home",
   "We register it with the manufacturer, so you get the full parts warranty"
  ],
+ "questions": [
+  {
+   "id": "inside_unit",
+   "label": "Where is your inside unit?",
+   "only_for": [
+    "split"
+   ],
+   "options": [
+    [
+     "closet",
+     "In a closet"
+    ],
+    [
+     "attic",
+     "In the attic"
+    ],
+    [
+     "garage",
+     "In the garage"
+    ],
+    [
+     "unsure",
+     "Not sure"
+    ]
+   ]
+  },
+  {
+   "id": "outside_unit",
+   "label": "Where is your outside unit?",
+   "options": [
+    [
+     "ground",
+     "On the ground"
+    ],
+    [
+     "roof",
+     "On the roof"
+    ],
+    [
+     "wall",
+     "On a wall or balcony"
+    ],
+    [
+     "unsure",
+     "Not sure"
+    ]
+   ]
+  },
+  {
+   "id": "distance",
+   "label": "How far apart are the inside and outside units?",
+   "only_for": [
+    "split"
+   ],
+   "help": "Copper lines run between them. Longer runs take more copper and more work.",
+   "options": [
+    [
+     "close",
+     "Close, same side of the house"
+    ],
+    [
+     "far",
+     "Far, other side or another floor"
+    ],
+    [
+     "unsure",
+     "Not sure"
+    ]
+   ]
+  },
+  {
+   "id": "home_type",
+   "label": "What kind of home is it?",
+   "options": [
+    [
+     "house",
+     "House"
+    ],
+    [
+     "townhouse",
+     "Townhouse"
+    ],
+    [
+     "condo",
+     "Condo or apartment"
+    ]
+   ]
+  },
+  {
+   "id": "floors",
+   "label": "How many floors does your home have?",
+   "options": [
+    [
+     "1",
+     "One floor"
+    ],
+    [
+     "2",
+     "Two or more"
+    ]
+   ]
+  },
+  {
+   "id": "age",
+   "label": "How old is your current AC?",
+   "help": "Check the label on the outside unit if you're not sure.",
+   "options": [
+    [
+     "under10",
+     "Under 10 years"
+    ],
+    [
+     "10to15",
+     "10 to 15 years"
+    ],
+    [
+     "over15",
+     "Over 15 years"
+    ],
+    [
+     "unsure",
+     "Not sure"
+    ]
+   ]
+  }
+ ],
+ "_questions_note": "The 'more precise price' questions. Live site: a question only shows if one of its answers has an extra cost below (preview shows them all). only_for = system types that see it.",
  "adjustments": [
   {
    "id": "attic",
    "question": "inside_unit",
    "answer": "attic",
    "label": "Inside unit in the attic",
-   "price": null
+   "price": null,
+   "why": "Hot, tight space. Takes longer and needs more hands."
   },
   {
    "id": "garage",
    "question": "inside_unit",
    "answer": "garage",
    "label": "Inside unit in the garage",
-   "price": null
+   "price": null,
+   "why": "Often needs a new stand or platform."
+  },
+  {
+   "id": "outside_roof",
+   "question": "outside_unit",
+   "answer": "roof",
+   "label": "Outside unit on the roof",
+   "price": null,
+   "why": "May need a crane or lift, plus a roof stand."
+  },
+  {
+   "id": "outside_wall",
+   "question": "outside_unit",
+   "answer": "wall",
+   "label": "Outside unit on a wall or balcony",
+   "price": null,
+   "why": "Wall brackets and harder access."
+  },
+  {
+   "id": "far_apart",
+   "question": "distance",
+   "answer": "far",
+   "label": "Long run between the units",
+   "price": null,
+   "why": "More copper line and more labor."
+  },
+  {
+   "id": "condo",
+   "question": "home_type",
+   "answer": "condo",
+   "label": "Condo or apartment",
+   "price": null,
+   "why": "HOA paperwork, elevator or loading rules, set work hours, tight closets."
   },
   {
    "id": "two_floors",
    "question": "floors",
    "answer": "2",
    "label": "Two or more floors",
-   "price": null
+   "price": null,
+   "why": "Longer line runs and carrying equipment upstairs."
+  },
+  {
+   "id": "old_system",
+   "question": "age",
+   "answer": "over15",
+   "label": "Current system over 15 years old",
+   "price": null,
+   "why": "Often needs new copper lines, wiring or a new disconnect."
   }
  ],
- "_adjustments_note": "Extra cost [low, high] added to every tier when the customer picks that answer in 'Get a more precise price'. null = no change shown.",
+ "_adjustments_note": "Extra cost [low, high] added to every tier when the customer picks that answer. price null = no extra cost (and the live site hides a question with no priced answers). why = internal note for Javier, not shown on the site.",
  "addons": [
   {
    "id": "soft_start",

@@ -42,11 +42,20 @@
   function adjustments() {
     var out = [0, 0], ok = true, lines = [];
     (S.adjustments || []).forEach(function (a) {
+      var qx = (S.questions || []).filter(function (x) { return x.id === a.question; })[0];
+      if (qx && qx.only_for && qx.only_for.indexOf(sysKey()) < 0) return;
       if (st.precise[a.question] === a.answer) {
         if (a.price) { out = add(out, a.price); lines.push([a.label, a.price]); } else { ok = false; lines.push([a.label, null]); }
       }
     });
     return { sum: ok ? out : null, lines: lines };
+  }
+  function preciseQuestions() {
+    // a question shows if it fits this system type, and (live site) one of its answers adds cost
+    return (S.questions || []).filter(function (x) {
+      if (x.only_for && x.only_for.indexOf(sysKey()) < 0) return false;
+      return PREVIEW || (S.adjustments || []).some(function (a) { return a.question === x.id && a.price; });
+    });
   }
   function basePrice(t) { return t.prices && t.prices[sysKey()] && t.prices[sysKey()][String(tons())]; }
   function tierRange(t) { var p = basePrice(t); return p ? add(p, adjustments().sum) : null; }
@@ -155,7 +164,7 @@
         '<p class="pt-sub">' + sub + "</p>" +
         '<p class="pt-teaser">' + teaser + "</p>" +
         '<div class="pt-tiers">' + S.tiers.map(tierCard).join("") + "</div>" + brandStrip() +
-        (FLOW === "last" ? "" : '<button type="button" class="pt-link" id="pt-precise-open">' + (Object.keys(st.precise).length ? "Change my home details" : "Get a more precise price (optional)") + "</button>" +
+        (FLOW === "last" ? "" : (preciseQuestions().length ? '<button type="button" class="pt-link" id="pt-precise-open">' : '<button type="button" class="pt-link" id="pt-precise-open" hidden>') + (Object.keys(st.precise).length ? "Change my home details" : "Get a more precise price (optional)") + "</button>" +
         '<p class="pt-help pt-foot">*Monthly payments are an estimate. They depend on approval by the lender.</p>') +
         nav(FLOW === "before" ? "Change my upgrades" : "Change my answers", null) + "</div>";
     },
@@ -166,8 +175,7 @@
         }).join("") + "</div></fieldset>";
       };
       return '<div class="pt-screen"><h2 class="pt-h">A few details for a more precise price</h2><p class="pt-help">All optional. Skip anything you\'re not sure about.</p>' +
-        q("inside_unit", "Where is your inside unit?", [["closet", "In a closet"], ["attic", "In the attic"], ["garage", "In the garage"], ["unsure", "Not sure"]]) +
-        q("floors", "How many floors does your home have?", [["1", "One floor"], ["2", "Two or more"]]) +
+        preciseQuestions().map(function (x) { return q(x.id, esc(x.label) + (x.help ? '<small class="pt-qhelp">' + esc(x.help) + "</small>" : ""), x.options.map(function (o) { return [o[0], esc(o[1])]; })); }).join("") +
         '<fieldset class="pt-step"><legend class="pt-q2">Add a photo of the label on your outside unit</legend><p class="pt-help">The sticker on the side tells us the size of your current system. It helps us get your price right.</p>' +
         '<input class="pt-file" type="file" id="pt-photo" accept="image/*">' + (st.photo ? '<p class="pt-help">Added: ' + esc(st.photo) + "</p>" : "") + "</fieldset>" +
         nav("Back", "Update my prices", "pt-next", false) + "</div>";
@@ -202,6 +210,7 @@
         rows.map(function (r) { return "<li><span>" + esc(r[0]) + "</span><span>" + (r[1] || (PREVIEW ? missing() : "At your visit")) + "</span></li>"; }).join("") +
         '</ul><div class="pt-total"><span>Estimated total</span><strong>' + (total ? rangeText(total) : (PREVIEW ? missing("$ — to $ —") : "At your free visit")) + "</strong></div>" + monthlyLine(total) +
         '<p class="pt-note">This is an estimate. We confirm your final price at a free visit to your home, before any work starts. If something at your home changes the price, we explain why and give you the new price in writing first.</p></div>' +
+        (preciseQuestions().length ? '<button type="button" class="pt-link pt-link--est" id="pt-precise-est">' + (Object.keys(st.precise).length ? "Change my home details" : "Make it more precise: answer a few questions about your home") + "</button>" : "") +
         '<div class="pt-ask"><h3>Want us to call you to talk through these options?</h3><p class="pt-sub">No pressure. We answer your questions and set up your free visit if you want one.</p>' +
         '<div class="pt-ask-btns"><button type="button" class="btn btn-primary" id="pt-yes">Yes, call me</button><button type="button" class="btn btn-outline" id="pt-no">No thanks</button></div></div>' +
         nav("Back", null) + "</div>";
@@ -241,11 +250,11 @@
     },
     precise: function () {
       bindBack();
-      document.querySelectorAll('#pt-stage input[name="pt-inside_unit"],#pt-stage input[name="pt-floors"]').forEach(function (i) {
+      document.querySelectorAll('#pt-stage .pt-step input[type="radio"]').forEach(function (i) {
         i.addEventListener("change", function () { st.precise[i.name.slice(3)] = i.value; ga("price_tool_precise", { q: i.name.slice(3) }); });
       });
       var ph = $("pt-photo"); if (ph) ph.addEventListener("change", function () { st.photo = ph.files && ph.files[0] ? ph.files[0].name : null; });
-      $("pt-next").addEventListener("click", function () { st.history.pop(); go("prices", { back: true }); });
+      $("pt-next").addEventListener("click", back);
     },
     addons: function () {
       bindBack();
@@ -256,6 +265,7 @@
     },
     estimate: function () {
       bindBack();
+      var pe = $("pt-precise-est"); if (pe) pe.addEventListener("click", function () { go("precise"); });
       $("pt-yes").addEventListener("click", function () { st.contact = "call"; ga("price_tool_call_yes"); go("contact"); });
       $("pt-no").addEventListener("click", function () { st.contact = "email"; ga("price_tool_call_no"); showBar(); go("contact"); });
     },
@@ -364,7 +374,7 @@
     if (S.tiers.some(function (t) { return !t.seer2 || !t.parts_years; })) need.push("SEER2 and parts warranty years for each tier");
     if (!S.financing.months || S.financing.apr_percent == null) need.push("Financing APR and number of months");
     if (S.addons.some(function (a) { return a.active && !a.price; })) need.push("Add-on prices");
-    if ((S.adjustments || []).some(function (a) { return !a.price; })) need.push("Extra cost for attic, garage and two-story homes (or none)");
+    if ((S.adjustments || []).some(function (a) { return !a.price; })) need.push("Extra costs for the home details questions: attic, roof, condo, older system and more (or none)");
     var c = (S.included || []).filter(function (i) { return i.confirm; }).map(function (i) { return i.text; });
     if (c.length) need.push("OK these 'what's included' lines: " + c.join("; "));
     need.push("Which tier gets the 'Our team's pick' tag (now: Comfort)");

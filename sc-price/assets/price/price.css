@@ -179,3 +179,6 @@ body.pt-has-bar{padding-bottom:4.5rem}
 .pt-flows span{font-weight:700}
 .pt-flows a{padding:.45rem .85rem;border-radius:999px;border:2px solid #d5e0ea;background:#fff;color:var(--navy);text-decoration:none;font-weight:700}
 .pt-flows a[aria-current]{border-color:var(--color-action);background:#fff7e0}
+
+.pt-q2 .pt-qhelp{display:block;font-family:var(--font-body);font-weight:400;line-height:1.4;font-size:var(--text-xs);color:var(--color-text-muted);margin-top:.2rem}
+.pt-link--est{display:block;margin:1rem 0 0;text-align:left}

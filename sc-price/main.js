@@ -208,8 +208,8 @@
         serviceDetail.hidden = !selected;
         if (selected) {
           serviceDetail.textContent = selected.value === "repair"
-            ? "Repair diagnostics are $99, credited toward your repair."
-            : "New unit quotes start with a free in-home visit.";
+            ? "$0 to come out. You only pay for the work you approve."
+            : "New systems start with a $0 in-home estimate.";
         }
       }
     }
