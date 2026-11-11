@@ -327,7 +327,7 @@
   function brandStrip() {
     return '<div class="pt-brands"><div class="pt-brand-photos" id="pt-brand-photos">' +
       BRANDS.map(function (b, i) { return '<img src="/sc-price/assets/price/brands/' + b + '.jpg" alt="A ' + b.charAt(0).toUpperCase() + b.slice(1) + ' unit from one of our team\'s jobs" class="b-' + b + (i === 0 ? " on" : "") + '">'; }).join("") +
-      '</div><p class="pt-brands-text"><strong>The truth about brands</strong>Brands aren\'t built like they used to be. Today the big names are much alike, and most give 10+ years on parts. We install them all, so if you have a favorite, just tell us.</p></div>';
+      '</div><p class="pt-brands-text"><strong>Good options across brands</strong>Today’s major AC brands have more in common than they used to, and each offers good options. Most give 10+ years on parts. We install them all, so tell us if you have a favorite.</p></div>';
   }
   function startBrandFade() {
     clearInterval(startBrandFade.t);
