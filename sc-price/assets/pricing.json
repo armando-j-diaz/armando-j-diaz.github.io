@@ -222,28 +222,6 @@
    ]
   },
   {
-   "id": "distance",
-   "label": "How far apart are the inside and outside units?",
-   "only_for": [
-    "split"
-   ],
-   "help": "Copper lines run between them. Longer runs take more copper and more work.",
-   "options": [
-    [
-     "close",
-     "Close, same side of the house"
-    ],
-    [
-     "far",
-     "Far, other side or another floor"
-    ],
-    [
-     "unsure",
-     "Not sure"
-    ]
-   ]
-  },
-  {
    "id": "home_type",
    "label": "What kind of home is it?",
    "options": [
@@ -332,14 +310,6 @@
    "label": "Outside unit on a wall or balcony",
    "price": null,
    "why": "Wall brackets and harder access."
-  },
-  {
-   "id": "far_apart",
-   "question": "distance",
-   "answer": "far",
-   "label": "Long run between the units",
-   "price": null,
-   "why": "More copper line and more labor."
   },
   {
    "id": "condo",
