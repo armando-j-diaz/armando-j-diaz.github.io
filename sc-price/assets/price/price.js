@@ -85,7 +85,7 @@
   function monthlyLine(r) {
     var m = r ? monthly(r[0]) : null;
     if (m) return '<p class="pt-monthly">' + m + "*</p>";
-    if (S.financing && S.financing.available) return '<p class="pt-monthly">' + (PREVIEW ? missing("monthly payment: needs financing terms") : "Financing available on qualifying installs") + "</p>";
+    if (S.financing && S.financing.available) return '<p class="pt-monthly">Financing available on qualifying installs</p>';
     return "";
   }
 
@@ -194,7 +194,7 @@
         (PRICE_ON_ESTIMATE ? '<p class="pt-help">Photos show examples. We confirm the exact brand and model in your quote.</p>' : "") +
         '<div class="pt-tiers">' + S.tiers.map(tierCard).join("") + "</div>" + brandStrip() +
         (preciseQuestions().length ? '<button type="button" class="pt-link" id="pt-precise-open">Change my home details</button>' : "") +
-        (PRICE_ON_ESTIMATE ? "" : '<p class="pt-help pt-foot">*Monthly payments are an estimate. They depend on approval by the lender.</p>') +
+        (!PRICE_ON_ESTIMATE && monthly(1) ? '<p class="pt-help pt-foot">*Monthly payments are an estimate. They depend on approval by the lender.</p>' : "") +
         nav(UPGRADES_FIRST ? "Change my upgrades" : "Change my answers", null) + "</div>";
     },
     precise: function () {
@@ -470,7 +470,6 @@
     var anyPrice = S.tiers.some(function (t) { return Object.keys(t.prices).some(function (k) { return Object.keys(t.prices[k]).some(function (n) { return t.prices[k][n]; }); }); });
     if (!anyPrice) need.push("Prices for each tier, size and system type");
     if (S.tiers.some(function (t) { return !t.seer2 || !t.parts_years; })) need.push("SEER2 and parts warranty years for each tier");
-    if (!S.financing.months || S.financing.apr_percent == null) need.push("Financing APR and number of months");
     if (S.addons.some(function (a) { return a.active && !a.price; })) need.push("Add-on prices");
     if ((S.adjustments || []).some(function (a) { return !a.price; })) need.push("Extra costs for the home details questions: attic, roof, condo, older system and more (or none)");
     var c = (S.included || []).filter(function (i) { return i.confirm; }).map(function (i) { return i.text; });
