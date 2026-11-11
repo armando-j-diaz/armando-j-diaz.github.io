@@ -1,0 +1,286 @@
+{
+ "_read_me": "THE ONE PLACE for Sunny Coast prices, fees and offers on the website (rule from 2026-11-08). Change a number here, rebuild, and every page that shows it updates. null = not set yet (the page shows a dash). Prices are [low, high] in dollars. Listings (Google, Yelp, etc.) never get any of these.",
+ "updated": "2026-11-10",
+ "flow": "after",
+ "_flow_note": "Order of the screens. after = prices on the 3 cards, then upgrades. before = upgrades first, then prices that include them. last = the 3 cards without prices, upgrades, then the price. Preview pages can flip with ?flow=.",
+ "visits": {
+  "repair_visit": "free",
+  "new_system_visit": "free",
+  "_note": "Javier confirmed 2026-11-10: free visits, no $99 diagnostic fee."
+ },
+ "lead_endpoint": "https://quotes.sunnycoastac.com/api/visit",
+ "phone": "(786) 822-6861",
+ "phone_href": "tel:+17868226861",
+ "sms_href": "sms:+17868226861",
+ "financing": {
+  "available": true,
+  "apr_percent": null,
+  "months": null,
+  "_note": "Javier: give the APR and term the lender offers most people. Monthly = based on the low end of the range."
+ },
+ "sizes": [
+  {
+   "id": "s1",
+   "label": "Under 1,000 sq ft",
+   "tons": 2
+  },
+  {
+   "id": "s2",
+   "label": "1,000 to 1,300 sq ft",
+   "tons": 2.5
+  },
+  {
+   "id": "s3",
+   "label": "1,300 to 1,600 sq ft",
+   "tons": 3
+  },
+  {
+   "id": "s4",
+   "label": "1,600 to 2,000 sq ft",
+   "tons": 3.5
+  },
+  {
+   "id": "s5",
+   "label": "2,000 to 2,400 sq ft",
+   "tons": 4
+  },
+  {
+   "id": "s6",
+   "label": "2,400 to 3,000 sq ft",
+   "tons": 5
+  },
+  {
+   "id": "s7",
+   "label": "Over 3,000 sq ft",
+   "tons": null,
+   "note": "Homes this size often need two systems. We'll size it at your free visit."
+  }
+ ],
+ "_sizes_note": "Javier: check the square feet to tons rule. These are rough South Florida starting points.",
+ "systems": [
+  {
+   "id": "split",
+   "label": "An inside unit and an outside unit",
+   "help": "A unit in a closet, attic or garage, plus one outside. This is the most common setup.",
+   "priced": true
+  },
+  {
+   "id": "package",
+   "label": "One unit outside or on the roof",
+   "help": "Everything is in one big box outside the house.",
+   "priced": true
+  },
+  {
+   "id": "ductless",
+   "label": "Wall units (ductless)",
+   "help": "Units on the wall in each room, with no air ducts.",
+   "priced": false,
+   "note": "Ductless prices depend on how many rooms you want cooled. Tell us a little about your home and we'll send you prices."
+  },
+  {
+   "id": "unsure",
+   "label": "Not sure",
+   "help": "That's fine. We'll show the most common setup and confirm at your free visit.",
+   "priced": true,
+   "use": "split"
+  }
+ ],
+ "tiers": [
+  {
+   "id": "standard",
+   "name": "Standard",
+   "speed": "One speed",
+   "hook": "Solid, simple cooling.",
+   "body": "It runs at full power, then shuts off. Reliable, with the lowest price of the three.",
+   "seer2": null,
+   "parts_years": null,
+   "pick": false,
+   "prices": {
+    "split": {
+     "2": null,
+     "2.5": null,
+     "3": null,
+     "3.5": null,
+     "4": null,
+     "5": null
+    },
+    "package": {
+     "2": null,
+     "2.5": null,
+     "3": null,
+     "3.5": null,
+     "4": null,
+     "5": null
+    }
+   }
+  },
+  {
+   "id": "comfort",
+   "name": "Comfort",
+   "speed": "Two speeds",
+   "hook": "Quieter, and better at pulling moisture out of the air.",
+   "body": "It runs on low most of the time. The house stays a more even temperature and feels less sticky, which matters a lot in Miami.",
+   "seer2": null,
+   "parts_years": null,
+   "pick": true,
+   "prices": {
+    "split": {
+     "2": null,
+     "2.5": null,
+     "3": null,
+     "3.5": null,
+     "4": null,
+     "5": null
+    },
+    "package": {
+     "2": null,
+     "2.5": null,
+     "3": null,
+     "3.5": null,
+     "4": null,
+     "5": null
+    }
+   }
+  },
+  {
+   "id": "premium",
+   "name": "Premium",
+   "speed": "Variable speed",
+   "hook": "The quietest, and the best at humidity.",
+   "body": "It speeds up and slows down a little at a time, like cruise control. Very steady temperature, very quiet, and the lowest power bills of the three.",
+   "seer2": null,
+   "parts_years": null,
+   "pick": false,
+   "prices": {
+    "split": {
+     "2": null,
+     "2.5": null,
+     "3": null,
+     "3.5": null,
+     "4": null,
+     "5": null
+    },
+    "package": {
+     "2": null,
+     "2.5": null,
+     "3": null,
+     "3.5": null,
+     "4": null,
+     "5": null
+    }
+   }
+  }
+ ],
+ "_tiers_note": "pick = the 'Our team's pick' tag (Javier's call). seer2 = text like '15.2'. parts_years = manufacturer parts warranty with registration.",
+ "warranty_lines": [
+  "1-Year Labor Warranty",
+  "System Workmanship Warranty for as long as you own your home",
+  "We register it with the manufacturer, so you get the full parts warranty"
+ ],
+ "adjustments": [
+  {
+   "id": "attic",
+   "question": "inside_unit",
+   "answer": "attic",
+   "label": "Inside unit in the attic",
+   "price": null
+  },
+  {
+   "id": "garage",
+   "question": "inside_unit",
+   "answer": "garage",
+   "label": "Inside unit in the garage",
+   "price": null
+  },
+  {
+   "id": "two_floors",
+   "question": "floors",
+   "answer": "2",
+   "label": "Two or more floors",
+   "price": null
+  }
+ ],
+ "_adjustments_note": "Extra cost [low, high] added to every tier when the customer picks that answer in 'Get a more precise price'. null = no change shown.",
+ "addons": [
+  {
+   "id": "soft_start",
+   "name": "Soft start kit",
+   "why": "Helps your system start up gently. Less strain on the parts, and the lights don't flicker when it turns on.",
+   "recommended": false,
+   "price": null,
+   "active": true,
+   "problem": "Every time your AC turns on, it pulls a big jolt of power. In Miami it turns on many times a day, all year long.",
+   "fix": "A soft start kit makes every start gentle. Less wear on the compressor (the most expensive part), quieter starts, and no flickering lights."
+  },
+  {
+   "id": "drain_safety",
+   "name": "Second drain pan + safety switch",
+   "short": "a drain safety switch",
+   "why": "If the drain ever clogs, the switch turns the AC off before water can leak into your home.",
+   "recommended": true,
+   "price": null,
+   "active": true,
+   "problem": "Miami humidity means your AC pulls gallons of water out of the air every day. If the drain line clogs, that water can overflow into your ceiling or closet.",
+   "fix": "A second pan catches the overflow, and the safety switch shuts the AC off before water reaches your home. You'd call us about a warm house, not a wet ceiling."
+  },
+  {
+   "id": "surge",
+   "name": "Surge protector",
+   "why": "Protects the outside unit from power surges and lightning.",
+   "recommended": false,
+   "price": null,
+   "active": true
+  },
+  {
+   "id": "smart_tstat",
+   "name": "Smart thermostat",
+   "why": "Change the temperature from your phone and set a schedule.",
+   "recommended": false,
+   "price": null,
+   "active": true
+  },
+  {
+   "id": "uv_light",
+   "name": "UV light",
+   "short": "a UV light",
+   "why": "Helps stop mold and germs from growing on the inside coil.",
+   "recommended": true,
+   "price": null,
+   "active": true,
+   "problem": "Miami heat and humidity keep the coil inside your AC cold and wet all day. That's just what mold likes, and it can cause a musty smell when the AC turns on.",
+   "fix": "A UV light shines on the coil and helps stop mold and germs from growing there. The coil stays cleaner, the air smells fresher, and your system doesn't have to work as hard."
+  },
+  {
+   "id": "hard_start",
+   "name": "Hard start kit",
+   "why": "Gives the system an extra push to start. Most new systems don't need one. We'll tell you if yours does.",
+   "recommended": false,
+   "price": null,
+   "active": true
+  }
+ ],
+ "included": [
+  {
+   "text": "Taking out and hauling away your old system",
+   "confirm": true
+  },
+  {
+   "text": "Permit and inspection",
+   "confirm": true
+  },
+  {
+   "text": "New pad or stand, with hurricane straps where needed",
+   "confirm": true
+  },
+  {
+   "text": "Start-up test and full system check",
+   "confirm": true
+  },
+  {
+   "text": "Most installs are done in one day",
+   "confirm": false
+  }
+ ],
+ "_included_note": "confirm: true = Javier still needs to OK this line. The preview banner lists them.",
+ "_addons_note": "recommended: true = shown first as a big 'what we'd add' card with its problem + fix text. Nothing is ever pre-checked."
+}
