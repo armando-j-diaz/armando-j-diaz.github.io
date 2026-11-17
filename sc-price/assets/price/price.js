@@ -3,7 +3,7 @@
 (function () {
   "use strict";
   var S = null;
-  var st = { size: null, system: null, tier: null, addons: {}, precise: {}, preciseStep: 0, contact: null, screen: "intro", history: [] };
+  var st = { size: null, system: null, tier: null, addons: {}, precise: {}, preciseStep: 0, contact: null, screen: "size", history: [] };
   var loadedAt = Date.now();
   var PREVIEW = true; // review copy: always preview, never sends
   var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -25,12 +25,12 @@
   var UPGRADES_FIRST = false;
   var PRICE_ON_ESTIMATE = false;
   var STEPS = ["size", "system", "prices", "addons", "estimate", "contact", "done"];
-  var STEP_LABEL = { size: "Home size", system: "Your system", prices: "Your prices", addons: "Upgrades", estimate: "Your estimate", contact: "Contact", special: "Contact", done: "Done" };
+  var STEP_LABEL = { size: "Home size", system: "Your system", prices: "Your prices", addons: "Upgrades", notice: "Before your price", estimate: "Your estimate", contact: "Contact", special: "Contact", done: "Done" };
   function setFlow(f) {
     FLOW = FLOWS[f] ? f : "after";
     UPGRADES_FIRST = FLOW === "before" || FLOW === "combined";
     PRICE_ON_ESTIMATE = FLOW === "last" || FLOW === "combined";
-    STEPS = UPGRADES_FIRST ? ["size", "system", "addons", "prices", "estimate", "contact", "done"] : ["size", "system", "prices", "addons", "estimate", "contact", "done"];
+    STEPS = UPGRADES_FIRST ? ["size", "system", "addons", "prices", "notice", "estimate", "contact", "done"] : ["size", "system", "prices", "addons", "notice", "estimate", "contact", "done"];
     STEP_LABEL.prices = PRICE_ON_ESTIMATE ? "Pick a system" : "Your prices";
   }
   function joinAnd(l) { return l.length < 2 ? l.join("") : l.slice(0, -1).join(", ") + " and " + l[l.length - 1]; }
@@ -61,10 +61,11 @@
     });
     return { sum: ok ? out : null, lines: lines };
   }
-  function preciseQuestions() {
-    // a question shows if it fits this system type, and (live site) one of its answers adds cost
+  function preciseQuestions(anySystem) {
+    // a question shows if it fits this system type, and (live site) one of its answers adds cost.
+    // anySystem: before the system is picked, count every question so "Step x of y" doesn't jump.
     return (S.questions || []).filter(function (x) {
-      if (x.only_for && x.only_for.indexOf(sysKey()) < 0) return false;
+      if (!anySystem && x.only_for && x.only_for.indexOf(sysKey()) < 0) return false;
       return PREVIEW || (S.adjustments || []).some(function (a) { return a.question === x.id && a.price; });
     });
   }
@@ -96,15 +97,15 @@
     bar.hidden = false;
     var key = screen === "precise" ? st.history[st.history.length - 1] : screen === "special" ? "contact" : screen;
     var i = STEPS.indexOf(key); if (i < 0) return;
-    var count = preciseQuestions().length;
+    var count = preciseQuestions(!st.system).length;
     if (i > STEPS.indexOf("system")) i += count;
     if (screen === "precise" && key === "system") i += st.preciseStep + 1;
     var pct = Math.round(((i + 1) / (STEPS.length + count)) * 100);
     $("pt-progress-fill").style.width = pct + "%";
     bar.setAttribute("aria-valuenow", String(pct));
-    $("pt-progress-label").textContent = screen === "precise"
-      ? "Home details · " + (st.preciseStep + 1) + " of " + count
-      : STEP_LABEL[screen] || "";
+    var total = STEPS.indexOf("estimate") + count;   // question screens before the estimate
+    var label = screen === "precise" ? "Home details" : STEP_LABEL[screen] || "";
+    $("pt-progress-label").textContent = (i + 1 <= total ? "Step " + (i + 1) + " of " + total + " · " : "") + label;
   }
   function go(screen, opts) {
     opts = opts || {};
@@ -130,7 +131,7 @@
     setTimeout(swap, 260);
   }
   function back() {
-    var prev = st.history.pop() || "intro";
+    var prev = st.history.pop() || "size";
     if (prev === "precise") st.preciseStep = preciseQuestions().length - 1;
     go(prev, { back: true });
   }
@@ -158,15 +159,9 @@
 
   // ---------- screens ----------
   var SCREENS = {
-    intro: function () {
-      return '<div class="pt-screen pt-intro"><p class="eyebrow">New AC prices</p><h1 class="display">New AC prices for your Miami home</h1>' +
-        '<p class="lede">Answer a few quick questions to get an estimate. No phone number needed.</p>' +
-        '<button type="button" class="btn btn-primary pt-start" id="pt-start">See what a new AC costs for your home</button>' +
-        '<p class="pt-fine">We confirm your price at a free visit before any work starts.</p></div>';
-    },
     size: function () {
       return '<div class="pt-screen"><h2 class="pt-h">How big is your home?</h2><p class="pt-help">Count the living space you cool. A good guess is fine.</p>' +
-        tiles("size", S.sizes, false, function (x) { return esc(x.label); }, st.size) + nav("Back", "Continue", "pt-next", !st.size) + "</div>";
+        tiles("size", S.sizes, false, function (x) { return esc(x.label); }, st.size) + nav(null, "Continue", "pt-next", !st.size) + "</div>";
     },
     system: function () {
       return '<div class="pt-screen"><h2 class="pt-h">What kind of system do you have now?</h2>' +
@@ -202,7 +197,7 @@
       var answer = st.precise[question.id];
       var options = question.options.map(function (o) { return { id: o[0], label: o[1] }; });
       return '<div class="pt-screen"><h2 class="pt-h">' + esc(question.label) + '</h2>' +
-        '<p class="pt-help">' + esc(question.help || "Optional. Skip if you’re not sure.") + "</p>" +
+        '<p class="pt-help">' + esc(question.help || "Not sure? Skip it.") + "</p>" +
         tiles("pt-detail", options, false, function (o) { return esc(o.label); }, answer) +
         '<button type="button" class="pt-link" id="pt-skip" ' + (answer ? "" : "hidden") + '>Skip this question</button>' +
         nav("Back", answer ? "Continue" : "Skip", "pt-next", false) + "</div>";
@@ -223,14 +218,24 @@
         return '<li><label class="pt-addon"><input type="checkbox" value="' + a.id + '"' + (st.addons[a.id] ? " checked" : "") + '><span><span class="pt-addon-name">' + esc(a.name) + '</span><span class="pt-addon-why">' + esc(a.why) + '</span></span>' + price(a) + "</label></li>";
       }).join("");
       var help = FLOW === "combined" ? "Choose any upgrades you’d like to include in your estimate."
-        : FLOW === "before" ? "Most homeowners only hear about these after something goes wrong. Check the ones you want and we'll add them to your prices on the next screen."
-        : "Most homeowners only hear about these after something goes wrong. Nothing is added unless you check it.";
+        : FLOW === "before" ? "Here's what we'd add in a Miami home, and why. Check the ones you want and we'll add them to your prices on the next screen."
+        : "Here's what we'd add in a Miami home, and why. Nothing is added unless you check it.";
       return '<div class="pt-screen">' + (t && !UPGRADES_FIRST ? '<p class="pt-chosen">Your system: <strong>' + esc(t.name) + "</strong></p>" : "") +
         '<h2 class="pt-h">' + (FLOW === "combined" ? "Optional upgrades" : FLOW === "before" ? "First, " + recCount() + " upgrades we recommend in Miami" : "What we\'d add in a Miami home") + '</h2><p class="pt-help">' + help + "</p>" +
         (FLOW === "combined" ? '<button type="button" class="pt-link pt-skip-upgrades" id="pt-skip-upgrades">Skip upgrades</button>' : "") +
         '<div class="pt-insights">' + rec + "</div>" +
         (more ? '<details class="pt-more"><summary>More options</summary><ul class="pt-addons">' + more + "</ul></details>" : "") +
         nav("Back", FLOW === "combined" ? "Choose a system" : FLOW === "before" ? "See my prices" : FLOW === "last" ? "See my price" : "See my estimate", "pt-next", false) + "</div>";
+    },
+    notice: function () {
+      // 2026-11-17 (Armando): make sure people know it's only an estimate before they see a number
+      var pf = S.proof || {};
+      return '<div class="pt-screen pt-notice"><h2 class="pt-h">Before you see your price</h2>' +
+        '<p class="pt-sub"><strong>This is an estimate, not a final quote.</strong></p><ul class="pt-notice-list">' +
+        (pf.installs ? "<li>It's based on the " + esc(pf.installs) + " new AC systems our team installed in " + esc(pf.area) + " this past year.</li>" : "<li>It's based on new AC systems our team installed this past year.</li>") +
+        "<li>Every home is different. Things we can't see online, like your ducts or wiring, can change the price.</li>" +
+        "<li>For your real price, we come out and look at your home. It's a free estimate, with no obligation.</li></ul>" +
+        nav("Back", "Got it, show my estimate", "pt-next", false) + "</div>";
     },
     estimate: function () {
       var t = tierObj(st.tier), tr = tierRange(t), base = basePrice(t);
@@ -241,12 +246,13 @@
       return '<div class="pt-screen"><h2 class="pt-h">Your estimate</h2>' +
         (PRICE_ON_ESTIMATE ? '<div class="pt-estimate-layout">' : "") + '<div class="pt-sum"><ul class="pt-sum-rows">' +
         rows.map(function (r) { return "<li><span>" + esc(r[0]) + "</span><span>" + (r[1] || (PREVIEW ? missing() : "At your visit")) + "</span></li>"; }).join("") +
-        '</ul><div class="pt-total"><span>Estimated total</span><strong>' + (total ? rangeText(total) : (PREVIEW ? missing("$ — to $ —") : "At your free visit")) + "</strong></div>" + monthlyLine(total) +
-        '<p class="pt-note">This is an estimate. We confirm your final price at a free visit to your home, before any work starts. If something at your home changes the price, we explain why and give you the new price in writing first.</p></div>' +
+        '</ul><div class="pt-total"><span>Estimated total</span><strong>' + (total ? rangeText(total) : (PREVIEW ? missing("$ — to $ —") : "At your free estimate")) + "</strong></div>" + monthlyLine(total) +
+        '<div class="pt-ask"><h3>Want us to call you about these options?</h3><p class="pt-sub">No pressure. We answer your questions and set up your free estimate if you want one.</p>' +
+        '<div class="pt-ask-btns"><button type="button" class="btn btn-primary" id="pt-yes">Yes, call me</button><button type="button" class="btn btn-outline" id="pt-no">No thanks</button></div></div>' +
+        '<p class="pt-note">This is an estimate. We confirm your final price when we come out for your free estimate, before any work starts. If something at your home changes the price, we explain why and give you the new price in writing first.</p>' +
+        (S.proof ? '<p class="pt-proof-est">Based on ' + esc(S.proof.installs) + ' new AC systems our team installed in ' + esc(S.proof.area) + ' this past year.</p>' : "") + "</div>" +
         (PRICE_ON_ESTIMATE ? '<figure class="pt-estimate-photo">' + productPhotos(t.id) + '<figcaption>Example ' + esc(t.name) + ' outdoor units</figcaption></figure></div>' : "") +
         (preciseQuestions().length ? '<button type="button" class="pt-link pt-link--est" id="pt-precise-est">Change my home details</button>' : "") +
-        '<div class="pt-ask"><h3>Want us to call you to talk through these options?</h3><p class="pt-sub">No pressure. We answer your questions and set up your free visit if you want one.</p>' +
-        '<div class="pt-ask-btns"><button type="button" class="btn btn-primary" id="pt-yes">Yes, call me</button><button type="button" class="btn btn-outline" id="pt-no">No thanks</button></div></div>' +
         nav("Back", null) + "</div>";
     },
     contact: function () { return '<div class="pt-screen">' + leadForm(st.contact) + nav("Back", null) + "</div>"; },
@@ -265,8 +271,8 @@
   };
 
   var BIND = {
-    intro: function () { $("pt-start").addEventListener("click", function () { ga("price_tool_start"); go("size"); }); },
-    size: function () { bindBack(); bindTiles("size", "pt-next", function (v) { st.size = v; }); $("pt-next").addEventListener("click", function () { go("system"); }); },
+    notice: function () { bindBack(); $("pt-next").addEventListener("click", function () { if ($("pt-stage").classList.contains("is-out")) return; ga("price_tool_notice_ok"); go("estimate"); }); },
+    size: function () { bindBack(); bindTiles("size", "pt-next", function (v) { if (!st.started) { st.started = true; ga("price_tool_start"); } st.size = v; }); $("pt-next").addEventListener("click", function () { go("system"); }); },
     system: function () {
       bindBack(); bindTiles("system", "pt-next", function (v) { st.system = v; });
       $("pt-next").addEventListener("click", function () {
@@ -285,7 +291,7 @@
       bindBack();
       document.querySelectorAll(".pt-tier").forEach(function (card) {
         var b = card.querySelector(".pt-choose");
-        card.addEventListener("click", function (e) { if (e.target.closest("a") || $("pt-stage").classList.contains("is-out")) return; st.tier = b.getAttribute("data-tier"); ga("price_tool_tier", { tier: st.tier, flow: FLOW }); go(UPGRADES_FIRST ? "estimate" : "addons"); });
+        card.addEventListener("click", function (e) { if (e.target.closest("a") || $("pt-stage").classList.contains("is-out")) return; st.tier = b.getAttribute("data-tier"); ga("price_tool_tier", { tier: st.tier, flow: FLOW }); go(UPGRADES_FIRST ? "notice" : "addons"); });
       });
       var po = $("pt-precise-open"); if (po) po.addEventListener("click", openPrecise);
     },
@@ -334,7 +340,7 @@
       });
       $("pt-next").addEventListener("click", function () {
         if ($("pt-stage").classList.contains("is-out")) return;
-        go(UPGRADES_FIRST ? "prices" : "estimate");
+        go(UPGRADES_FIRST ? "prices" : "notice");
       });
     },
     estimate: function () {
@@ -349,7 +355,7 @@
       $("pt-restart").addEventListener("click", function () {
         st.size = st.system = st.tier = st.contact = null; st.addons = {}; st.precise = {}; st.history = [];
         var bar = $("pt-bar"); if (bar) { bar.remove(); document.body.classList.remove("pt-has-bar"); }
-        go("intro", { back: true });
+        go("size", { back: true });
       });
     }
   };
@@ -358,7 +364,7 @@
   function brandStrip() {
     return '<div class="pt-brands"><div class="pt-brand-photos" id="pt-brand-photos">' +
       BRANDS.map(function (b, i) { return '<img src="/sc-price/assets/price/brands/' + b + '.jpg" alt="A ' + b.charAt(0).toUpperCase() + b.slice(1) + ' unit from one of our team\'s jobs" class="b-' + b + (i === 0 ? " on" : "") + '">'; }).join("") +
-      '</div><p class="pt-brands-text"><strong>Good options across brands</strong>Today’s major AC brands have more in common than they used to, and each offers good options. Most give 10+ years on parts. We install them all, so tell us if you have a favorite.</p></div>';
+      '</div><p class="pt-brands-text"><strong>We install all of these brands</strong>Trane, Carrier, Goodman, Rheem and Lennox. Today’s major brands have more in common than they used to, and most give 10+ years on parts. Tell us if you have a favorite.</p></div>';
   }
   function startBrandFade() {
     clearInterval(startBrandFade.t);
@@ -393,11 +399,11 @@
   function tierCard(t) {
     var r = tierRange(t), feats = [];
     feats.push(esc(t.speed) + (t.id === "standard" ? ": on or off" : ""));
-    feats.push(t.seer2 ? "Efficiency: " + esc(t.seer2) + " SEER2" : (PREVIEW ? "Efficiency: " + missing("SEER2") : ""));
+    feats.push(t.seer2 ? "Efficiency rating: " + esc(t.seer2) + " SEER2 (higher saves more on your bill)" : (PREVIEW ? "Efficiency rating: " + missing("SEER2") : ""));
     feats.push(t.parts_years ? esc(t.parts_years) + "-year parts warranty" : (PREVIEW ? missing("parts warranty years") : ""));
     S.warranty_lines.forEach(function (w) { feats.push(esc(w)); });
     if (FLOW === "before") r = add(r, addonRange());
-    var price = r ? rangeText(r) : (PREVIEW ? missing("$ — to $ —") : "Price at your free visit");
+    var price = r ? rangeText(r) : (PREVIEW ? missing("$ — to $ —") : "Price at your free estimate");
     var label = FLOW === "after" ? "Customize " : "Pick ";
     return '<article class="pt-tier' + (t.pick ? " is-pick" : "") + '">' + (t.pick ? '<span class="pt-tag">Our team\'s pick</span>' : "") +
       (PRICE_ON_ESTIMATE ? productPhotos(t.id) : "") +
@@ -501,7 +507,7 @@
     S = data;
     var qf = (location.search.match(/[?&]flow=(\w+)/) || [])[1];
     setFlow(PREVIEW && qf ? qf : S.flow);
-    previewBanner(); flowSwitch(); renderFaqIncluded(); go("intro", { instant: true, back: true, noScroll: true });
+    previewBanner(); flowSwitch(); renderFaqIncluded(); go("size", { instant: true, back: true, noScroll: true });
   }).catch(function () {
     var e = $("pt-stage"); if (e) e.insertAdjacentHTML("beforeend", '<p class="pt-err">The price tool didn\'t load. Please call or text us at (786) 822-6861.</p>');
   });

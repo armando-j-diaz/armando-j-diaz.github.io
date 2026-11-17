@@ -12,6 +12,14 @@
  "phone": "(786) 822-6861",
  "phone_href": "tel:+17868226861",
  "sms_href": "sms:+17868226861",
+ "proof": {
+  "installs": 120,
+  "from": "Nov. 17, 2025",
+  "to": "Nov. 17, 2026",
+  "area": "Miami-Dade and Broward",
+  "rating": "4.9",
+  "_note": "Completed new-system (LSC) jobs in Dispatch with a Miami-Dade or Broward ZIP, last 12 months. Counted 2026-11-17 by 2026-11-05/_check/install_count.py. Re-run it and update all 4 fields together (Armando: use the exact number, with the * footnote)."
+ },
  "financing": {
   "available": true,
   "apr_percent": null,
@@ -398,19 +406,19 @@
  "included": [
   {
    "text": "Taking out and hauling away your old system",
-   "confirm": true
+   "confirm": false
   },
   {
    "text": "Permit and inspection",
-   "confirm": true
+   "confirm": false
   },
   {
    "text": "New pad or stand, with hurricane straps where needed",
-   "confirm": true
+   "confirm": false
   },
   {
    "text": "Start-up test and full system check",
-   "confirm": true
+   "confirm": false
   },
   {
    "text": "Most installs are done in one day",

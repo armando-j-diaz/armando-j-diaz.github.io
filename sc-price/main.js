@@ -208,8 +208,8 @@
         serviceDetail.hidden = !selected;
         if (selected) {
           serviceDetail.textContent = selected.value === "repair"
-            ? "$0 to come out. You only pay for the work you approve."
-            : "New systems start with a $0 in-home estimate.";
+            ? "Free repair estimate. You only pay for the work you approve."
+            : "New systems start with a free estimate.";
         }
       }
     }
@@ -256,7 +256,8 @@
           first_name: first,
           last_name: last,
           email: email,
-          project_info: projectInfo,
+          project_info: (function () { var h = form.querySelector('[name="heard_about"]'); var v = h && h.value ? h.value : ""; return v ? "How they heard about us: " + v + (projectInfo ? "\n\n" + projectInfo.slice(0, 1900) : "") : projectInfo; })(),
+          heard_about: (function () { var h = form.querySelector('[name="heard_about"]'); return h ? (h.value || "not_given") : undefined; })(),
           service_type: serviceType.value,
           consent_sms: !!(sms && sms.checked),
           consent_contact: true,
@@ -998,6 +999,21 @@ document.addEventListener('input',function(e){var t=e.target;if(t&&t.classList&&
   // A form lead went through (called from postJSON after the server said OK).
   window.scLead = function (form, payload) {
     var kind = (payload && (payload.service_type || payload.intent)) || "unknown";
-    ga("generate_lead", { form_id: (form && form.id) || "form", lead_type: String(kind).slice(0, 40), page_path: path });
+    var params = { form_id: (form && form.id) || "form", lead_type: String(kind).slice(0, 40), page_path: path };
+    // "How did you hear about us?" (2026-11-17): only forms with that dropdown send it ("not_given" = left blank).
+    if (payload && payload.heard_about) params.heard_about = String(payload.heard_about).slice(0, 40);
+    ga("generate_lead", params);
   };
 })();
+/* sc-clarity */
+if(/(^|\.)sunnycoastac\.com$/.test(location.hostname)){(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","zerhuksl3a");}
+
+/* sidebar-toc 2026-11-12 */
+(function(){var box=document.querySelector('.lb-toc');if(!box)return;var list=box.querySelector('.lb-toc-list');
+var hs=[].slice.call(document.querySelectorAll('.lb-main h2')).filter(function(h){return h.offsetParent!==null&&h.textContent.trim()});
+if(hs.length<2)return;var used={};
+hs.forEach(function(h){if(!h.id){var b=h.textContent.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'s';var id=b,n=2;while(used[id]||document.getElementById(id))id=b+'-'+n++;h.id=id;}used[h.id]=1;
+var a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent.trim();list.appendChild(a);});
+box.hidden=false;if(!('IntersectionObserver' in window))return;var ls=[].slice.call(list.querySelectorAll('a'));
+var o=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)ls.forEach(function(a){a.classList.toggle('on',a.getAttribute('href')==='#'+e.target.id)})})},{rootMargin:'-25% 0px -65% 0px'});
+hs.forEach(function(h){o.observe(h)});})();
