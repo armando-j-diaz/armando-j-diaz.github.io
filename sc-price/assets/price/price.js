@@ -6,6 +6,10 @@
   var st = { size: null, system: null, tier: null, addons: {}, precise: {}, preciseStep: 0, contact: null, screen: "size", history: [] };
   var loadedAt = Date.now();
   var PREVIEW = true; // review copy: always preview, never sends
+  // CLEAN (Armando 2026-11-17): the review copy for Javier looks exactly like the live page (no yellow banner,
+  // no version buttons, no yellow blanks) but still never sends anything and still shows every home question.
+  var CLEAN = true; // review copy looks like the live page (Armando 2026-11-17)
+  var UI = PREVIEW && !CLEAN;   // show the preview-only helpers
   var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var BRANDS = ["goodman", "carrier", "trane", "rheem", "lennox"];
   var PRODUCT_BRANDS = ["trane", "carrier", "goodman"];
@@ -40,7 +44,7 @@
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function ga(n, p) { try { if (window.gtag) window.gtag("event", n, p || {}); } catch (e) {} }
   function money(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
-  function missing(t) { return PREVIEW ? '<span class="pt-missing">' + (t || "$ —") + "</span>" : ""; }
+  function missing(t) { return UI ? '<span class="pt-missing">' + (t || "$ —") + "</span>" : ""; }
 
   // ---------- price math ----------
   function sizeObj() { return S.sizes.filter(function (x) { return x.id === st.size; })[0]; }
@@ -206,7 +210,7 @@
       var t = tierObj(st.tier), act = S.addons.filter(function (a) { return a.active; });
       var price = function (a) {
         if (FLOW === "combined") return "";
-        return '<span class="pt-addon-price">' + (a.price ? "+" + rangeText(a.price) : PREVIEW ? missing("+$ —") : "Ask us") + "</span>";
+        return '<span class="pt-addon-price">' + (a.price ? "+" + rangeText(a.price) : UI ? missing("+$ —") : "Ask us") + "</span>";
       };
       var rec = act.filter(function (a) { return a.recommended; }).map(function (a) {
         return '<article class="pt-insight"><h3>' + esc(a.name) + '</h3>' +
@@ -245,8 +249,8 @@
       var total = add(tr, addonRange());
       return '<div class="pt-screen"><h2 class="pt-h">Your estimate</h2>' +
         (PRICE_ON_ESTIMATE ? '<div class="pt-estimate-layout">' : "") + '<div class="pt-sum"><ul class="pt-sum-rows">' +
-        rows.map(function (r) { return "<li><span>" + esc(r[0]) + "</span><span>" + (r[1] || (PREVIEW ? missing() : "At your visit")) + "</span></li>"; }).join("") +
-        '</ul><div class="pt-total"><span>Estimated total</span><strong>' + (total ? rangeText(total) : (PREVIEW ? missing("$ — to $ —") : "At your free estimate")) + "</strong></div>" + monthlyLine(total) +
+        rows.map(function (r) { return "<li><span>" + esc(r[0]) + "</span><span>" + (r[1] || (UI ? missing() : "At your visit")) + "</span></li>"; }).join("") +
+        '</ul><div class="pt-total"><span>Estimated total</span><strong>' + (total ? rangeText(total) : (UI ? missing("$ — to $ —") : "At your free estimate")) + "</strong></div>" + monthlyLine(total) +
         '<div class="pt-ask"><h3>Want us to call you about these options?</h3><p class="pt-sub">No pressure. We answer your questions and set up your free estimate if you want one.</p>' +
         '<div class="pt-ask-btns"><button type="button" class="btn btn-primary" id="pt-yes">Yes, call me</button><button type="button" class="btn btn-outline" id="pt-no">No thanks</button></div></div>' +
         '<p class="pt-note">This is an estimate. We confirm your final price when we come out for your free estimate, before any work starts. If something at your home changes the price, we explain why and give you the new price in writing first.</p>' +
@@ -262,8 +266,8 @@
     },
     done: function () {
       var call = st.contact === "call";
-      return '<div class="pt-screen pt-done"><div class="pt-check" aria-hidden="true"></div><h2 class="pt-h">' + (PREVIEW ? "Preview: nothing was sent" : "Thank you, you're all set") + "</h2>" +
-        '<p class="pt-sub">' + (PREVIEW ? "On the live site this " + (call ? "sends your request to our team." : "emails the customer this estimate.") :
+      return '<div class="pt-screen pt-done"><div class="pt-check" aria-hidden="true"></div><h2 class="pt-h">' + (UI ? "Preview: nothing was sent" : "Thank you, you're all set") + "</h2>" +
+        '<p class="pt-sub">' + (UI ? "On the live site this " + (call ? "sends your request to our team." : "emails the customer this estimate.") :
           (call ? "We got your request and will call you as soon as we can." : "We'll email your estimate shortly. Look it over whenever you're ready.")) + "</p>" +
         '<p>Questions now? Call or text <a href="' + S.phone_href + '">' + esc(S.phone) + "</a>.</p>" +
         '<button type="button" class="pt-link" id="pt-restart">Start over</button></div>';
@@ -399,11 +403,11 @@
   function tierCard(t) {
     var r = tierRange(t), feats = [];
     feats.push(esc(t.speed) + (t.id === "standard" ? ": on or off" : ""));
-    feats.push(t.seer2 ? "Efficiency rating: " + esc(t.seer2) + " SEER2 (higher saves more on your bill)" : (PREVIEW ? "Efficiency rating: " + missing("SEER2") : ""));
-    feats.push(t.parts_years ? esc(t.parts_years) + "-year parts warranty" : (PREVIEW ? missing("parts warranty years") : ""));
+    feats.push(t.seer2 ? "Efficiency rating: " + esc(t.seer2) + " SEER2 (higher saves more on your bill)" : (UI ? "Efficiency rating: " + missing("SEER2") : ""));
+    feats.push(t.parts_years ? esc(t.parts_years) + "-year parts warranty" : (UI ? missing("parts warranty years") : ""));
     S.warranty_lines.forEach(function (w) { feats.push(esc(w)); });
     if (FLOW === "before") r = add(r, addonRange());
-    var price = r ? rangeText(r) : (PREVIEW ? missing("$ — to $ —") : "Price at your free estimate");
+    var price = r ? rangeText(r) : (UI ? missing("$ — to $ —") : "Price at your free estimate");
     var label = FLOW === "after" ? "Customize " : "Pick ";
     return '<article class="pt-tier' + (t.pick ? " is-pick" : "") + '">' + (t.pick ? '<span class="pt-tag">Our team\'s pick</span>' : "") +
       (PRICE_ON_ESTIMATE ? productPhotos(t.id) : "") +
@@ -471,7 +475,7 @@
     b.querySelector(".pt-bar-x").addEventListener("click", function () { b.remove(); document.body.classList.remove("pt-has-bar"); });
   }
   function previewBanner() {
-    if (!PREVIEW) return;
+    if (!UI) return;
     var need = [];
     var anyPrice = S.tiers.some(function (t) { return Object.keys(t.prices).some(function (k) { return Object.keys(t.prices[k]).some(function (n) { return t.prices[k][n]; }); }); });
     if (!anyPrice) need.push("Prices for each tier, size and system type");
@@ -488,7 +492,7 @@
   }
   function flowSwitch() {
     // Preview only: keep the earlier screen orders available for comparison.
-    if (!PREVIEW) return;
+    if (!UI) return;
     var app = $("pt-app"); if (!app || $("pt-flows")) return;
     var d = document.createElement("div"); d.className = "pt-flows"; d.id = "pt-flows";
     d.innerHTML = '<span>Version:</span>' + Object.keys(FLOWS).map(function (k, i) {
@@ -500,7 +504,7 @@
   }
   function renderFaqIncluded() {
     var ul = $("pt-included"); if (!ul) return;
-    ul.innerHTML = (S.included || []).map(function (i) { return "<li>" + esc(i.text) + (PREVIEW && i.confirm ? " " + missing("Javier to OK") : "") + "</li>"; }).join("");
+    ul.innerHTML = (S.included || []).map(function (i) { return "<li>" + esc(i.text) + (UI && i.confirm ? " " + missing("Javier to OK") : "") + "</li>"; }).join("");
   }
 
   fetch("/sc-price/assets/pricing.json", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (data) {
