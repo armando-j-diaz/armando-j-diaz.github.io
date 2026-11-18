@@ -267,8 +267,10 @@
       var picker = maxN > 1 ? '<div class="pt-count" role="group" aria-label="How many ACs to price"><span>Price for:</span>' +
         [1, 2, 3].slice(0, maxN).map(function (k) { return '<button type="button" class="pt-count-btn" data-n="' + k + '" aria-pressed="' + (k === n) + '">' + k + (k === 1 ? " AC" : " ACs") + "</button>"; }).join("") +
         (d ? '<small>' + Math.round(d * 100) + '% off when we do 2 or more</small>' : "") + "</div>" : "";
-      return '<div class="pt-screen"><h2 class="pt-h">Your estimate</h2>' + picker +
-        (PRICE_ON_ESTIMATE ? '<div class="pt-estimate-layout">' : "") + '<div class="pt-sum"><ul class="pt-sum-rows">' +
+      // Armando 2026-11-17: the AC photo sits right under "Your estimate" on phones and computers
+      return '<div class="pt-screen"><h2 class="pt-h">Your estimate</h2>' +
+        (PRICE_ON_ESTIMATE ? '<figure class="pt-estimate-photo">' + productPhotos(t.id) + '<figcaption>Example ' + esc(t.name) + ' outdoor units</figcaption></figure>' : "") +
+        picker + '<div class="pt-sum"><ul class="pt-sum-rows">' +
         rows.map(function (r) { return "<li><span>" + esc(r[0]) + "</span><span>" + (r[1] || (UI ? missing() : "At your visit")) + "</span></li>"; }).join("") +
         '</ul><div class="pt-total"><span>Estimated total</span><strong>' + (total ? rangeText(total) : (UI ? missing("$ — to $ —") : "At your free estimate")) + "</strong></div>" + monthlyLine(total) +
         (maxN > 1 ? '<p class="pt-multi">' + (n > 1 ? "This assumes each AC gets the same system. We check each one at your free estimate." : "This price is for one AC.") + "</p>" : "") +
@@ -276,7 +278,6 @@
         '<div class="pt-ask-btns"><button type="button" class="btn btn-primary" id="pt-yes">Yes, call me</button><button type="button" class="btn btn-outline" id="pt-no">No thanks</button></div></div>' +
         '<p class="pt-note">This is an estimate. We confirm your final price when we come out for your free estimate, before any work starts. If something at your home changes the price, we explain why and give you the new price in writing first.</p>' +
         (S.proof ? '<p class="pt-proof-est">Based on ' + esc(S.proof.installs) + ' new AC systems our team installed in ' + esc(S.proof.area) + ' this past year.</p>' : "") + "</div>" +
-        (PRICE_ON_ESTIMATE ? '<figure class="pt-estimate-photo">' + productPhotos(t.id) + '<figcaption>Example ' + esc(t.name) + ' outdoor units</figcaption></figure></div>' : "") +
         (preciseQuestions().length ? '<button type="button" class="pt-link pt-link--est" id="pt-precise-est">Change my home details</button>' : "") +
         nav("Back", null) + "</div>";
     },

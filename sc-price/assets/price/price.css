@@ -228,3 +228,11 @@ body.pt-has-bar{padding-bottom:4.5rem}
 .pt-count-btn{border:2px solid #d5e0ea;background:#fff;border-radius:999px;padding:.35rem .9rem;font:inherit;font-weight:700;color:var(--navy);cursor:pointer}
 .pt-count-btn[aria-pressed="true"]{border-color:var(--color-action);background:#fff7e8}
 .pt-count small{flex-basis:100%;font-weight:400;color:var(--color-text-muted)}
+/* 2026-11-17: estimate photo on top, centered, on every screen size */
+.pt-estimate-photo{max-width:300px;margin:0 auto 1rem;text-align:center}
+.pt-estimate-photo .pt-product-rotator{aspect-ratio:4/3}
+.pt-screen .pt-count{justify-content:center}
+.pt-estimate-photo{max-width:210px;margin-bottom:.75rem}
+.pt-estimate-photo figcaption{padding:.3rem .5rem}
+.pt-count small{text-align:center}
+.pt-count{margin-bottom:.75rem}
