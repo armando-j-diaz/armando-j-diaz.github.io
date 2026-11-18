@@ -28,13 +28,13 @@
   var FLOW = "after";
   var UPGRADES_FIRST = false;
   var PRICE_ON_ESTIMATE = false;
-  var STEPS = ["size", "system", "prices", "addons", "estimate", "contact", "done"];
-  var STEP_LABEL = { size: "Home size", system: "Your system", prices: "Your prices", addons: "Upgrades", notice: "Before your price", estimate: "Your estimate", contact: "Contact", special: "Contact", done: "Done" };
+  var STEPS = ["size", "count", "system", "prices", "addons", "estimate", "contact", "done"];
+  var STEP_LABEL = { size: "Home size", count: "How many ACs", system: "Your system", prices: "Your prices", addons: "Upgrades", notice: "Before your price", estimate: "Your estimate", contact: "Contact", special: "Contact", done: "Done" };
   function setFlow(f) {
     FLOW = FLOWS[f] ? f : "after";
     UPGRADES_FIRST = FLOW === "before" || FLOW === "combined";
     PRICE_ON_ESTIMATE = FLOW === "last" || FLOW === "combined";
-    STEPS = UPGRADES_FIRST ? ["size", "system", "addons", "prices", "notice", "estimate", "contact", "done"] : ["size", "system", "prices", "addons", "notice", "estimate", "contact", "done"];
+    STEPS = UPGRADES_FIRST ? ["size", "count", "system", "addons", "prices", "notice", "estimate", "contact", "done"] : ["size", "count", "system", "prices", "addons", "notice", "estimate", "contact", "done"];
     STEP_LABEL.prices = PRICE_ON_ESTIMATE ? "Pick a system" : "Your prices";
   }
   function joinAnd(l) { return l.length < 2 ? l.join("") : l.slice(0, -1).join(", ") + " and " + l[l.length - 1]; }
@@ -50,7 +50,8 @@
   function sizeObj() { return S.sizes.filter(function (x) { return x.id === st.size; })[0]; }
   function sysObj() { return S.systems.filter(function (x) { return x.id === st.system; })[0]; }
   function sysKey() { var s = sysObj(); return s ? (s.use || s.id) : null; }
-  function tons() { var z = sizeObj(); return z ? z.tons : null; }
+  function tons() { if (st.tonsPick) return Number(st.tonsPick); var z = sizeObj(); return z ? z.tons : null; }
+  var TONS = ["2", "2.5", "3", "3.5", "4", "5"];
   function recCount() { var n = S.addons.filter(function (a) { return a.active && a.recommended; }).length; return n === 2 ? "2" : String(n); }
   function tierObj(id) { return S.tiers.filter(function (t) { return t.id === id; })[0]; }
   function add(a, b) { if (!a || !b) return null; return [a[0] + b[0], a[1] + b[1]]; }
@@ -165,7 +166,15 @@
   var SCREENS = {
     size: function () {
       return '<div class="pt-screen"><h2 class="pt-h">How big is your home?</h2><p class="pt-help">Count the living space you cool. A good guess is fine.</p>' +
-        tiles("size", S.sizes, false, function (x) { return esc(x.label); }, st.size) + nav(null, "Continue", "pt-next", !st.size) + "</div>";
+        tiles("size", S.sizes, false, function (x) { return esc(x.label); }, st.size) +
+        '<p class="pt-or"><span>or</span></p><h3 class="pt-h3">Know the size of your AC now?</h3><p class="pt-help">It\'s in "tons" on the label of the outside unit. Skip this if you\'re not sure.</p>' +
+        tiles("tons", TONS.map(function (t) { return { id: t, label: t + " tons" }; }), false, function (x) { return esc(x.label); }, st.tonsPick) +
+        nav(null, "Continue", "pt-next", !(st.size || st.tonsPick)) + "</div>";
+    },
+    count: function () {
+      var opts = [{ id: "1", label: "1" }, { id: "2", label: "2" }, { id: "3", label: "3 or more" }];
+      return '<div class="pt-screen"><h2 class="pt-h">How many ACs does your home have?</h2>' +
+        tiles("count", opts, false, function (x) { return esc(x.label); }, st.count) + nav("Back", "Continue", "pt-next", !st.count) + "</div>";
     },
     system: function () {
       return '<div class="pt-screen"><h2 class="pt-h">What kind of system do you have now?</h2>' +
@@ -243,7 +252,7 @@
     },
     estimate: function () {
       var t = tierObj(st.tier), tr = tierRange(t), base = basePrice(t);
-      var rows = [[t.name + " system, " + tons() + " tons", base ? rangeText(base) : null]];
+      var rows = [[t.name + " system, " + tons() + " tons" + (st.count && st.count !== "1" ? " (1 of your ACs)" : ""), base ? rangeText(base) : null]];
       adjustments().lines.forEach(function (l) { rows.push([l[0], l[1] ? "+" + rangeText(l[1]) : null]); });
       S.addons.forEach(function (a) { if (st.addons[a.id]) rows.push([a.name, a.price ? "+" + rangeText(a.price) : null]); });
       var total = add(tr, addonRange());
@@ -251,6 +260,7 @@
         (PRICE_ON_ESTIMATE ? '<div class="pt-estimate-layout">' : "") + '<div class="pt-sum"><ul class="pt-sum-rows">' +
         rows.map(function (r) { return "<li><span>" + esc(r[0]) + "</span><span>" + (r[1] || (UI ? missing() : "At your visit")) + "</span></li>"; }).join("") +
         '</ul><div class="pt-total"><span>Estimated total</span><strong>' + (total ? rangeText(total) : (UI ? missing("$ — to $ —") : "At your free estimate")) + "</strong></div>" + monthlyLine(total) +
+        (st.count && st.count !== "1" ? '<p class="pt-multi">This price is for one AC. We price your other ' + (st.count === "2" ? "one" : "ones") + " at your free estimate.</p>" : "") +
         '<div class="pt-ask"><h3>Want us to call you about these options?</h3><p class="pt-sub">No pressure. We answer your questions and set up your free estimate if you want one.</p>' +
         '<div class="pt-ask-btns"><button type="button" class="btn btn-primary" id="pt-yes">Yes, call me</button><button type="button" class="btn btn-outline" id="pt-no">No thanks</button></div></div>' +
         '<p class="pt-note">This is an estimate. We confirm your final price when we come out for your free estimate, before any work starts. If something at your home changes the price, we explain why and give you the new price in writing first.</p>' +
@@ -261,7 +271,7 @@
     },
     contact: function () { return '<div class="pt-screen">' + leadForm(st.contact) + nav("Back", null) + "</div>"; },
     special: function () {
-      var z = sizeObj(), s = sysObj(), why = !s.priced ? s.note : z.note;
+      var z = sizeObj(), s = sysObj(), why = !s.priced ? s.note : (z && z.note) || "";
       return '<div class="pt-screen"><h2 class="pt-h">Let\'s get you a real price</h2><p class="pt-sub">' + esc(why) + "</p>" + leadForm("call", true) + nav("Back", null) + "</div>";
     },
     done: function () {
@@ -276,7 +286,14 @@
 
   var BIND = {
     notice: function () { bindBack(); $("pt-next").addEventListener("click", function () { if ($("pt-stage").classList.contains("is-out")) return; ga("price_tool_notice_ok"); go("estimate"); }); },
-    size: function () { bindBack(); bindTiles("size", "pt-next", function (v) { if (!st.started) { st.started = true; ga("price_tool_start"); } st.size = v; }); $("pt-next").addEventListener("click", function () { go("system"); }); },
+    size: function () {
+      function started() { if (!st.started) { st.started = true; ga("price_tool_start"); } }
+      function clear(name) { document.querySelectorAll('#pt-stage input[name="' + name + '"]').forEach(function (i) { i.checked = false; }); }
+      bindTiles("size", "pt-next", function (v) { started(); st.size = v; st.tonsPick = null; clear("tons"); });
+      bindTiles("tons", "pt-next", function (v) { started(); st.tonsPick = v; st.size = null; clear("size"); });
+      $("pt-next").addEventListener("click", function () { go("count"); });
+    },
+    count: function () { bindBack(); bindTiles("count", "pt-next", function (v) { st.count = v; ga("price_tool_count", { count: v }); }); $("pt-next").addEventListener("click", function () { go("system"); }); },
     system: function () {
       bindBack(); bindTiles("system", "pt-next", function (v) { st.system = v; });
       $("pt-next").addEventListener("click", function () {
@@ -368,7 +385,7 @@
   function brandStrip() {
     return '<div class="pt-brands"><div class="pt-brand-photos" id="pt-brand-photos">' +
       BRANDS.map(function (b, i) { return '<img src="/sc-price/assets/price/brands/' + b + '.jpg" alt="A ' + b.charAt(0).toUpperCase() + b.slice(1) + ' unit from one of our team\'s jobs" class="b-' + b + (i === 0 ? " on" : "") + '">'; }).join("") +
-      '</div><p class="pt-brands-text"><strong>We install all of these brands</strong>Trane, Carrier, Goodman, Rheem and Lennox. Today’s major brands have more in common than they used to, and most give 10+ years on parts. Tell us if you have a favorite.</p></div>';
+      '</div><p class="pt-brands-text"><strong>We install all brands</strong>Including Trane, Carrier, Goodman, Rheem and Lennox. Today’s major brands have more in common than they used to, and most give 10+ years on parts. Tell us if you have a favorite.</p></div>';
   }
   function startBrandFade() {
     clearInterval(startBrandFade.t);
@@ -432,7 +449,7 @@
   }
   function summaryText() {
     var z = sizeObj(), s = sysObj(), t = st.tier ? tierObj(st.tier) : null, parts = [];
-    parts.push("Price tool: " + z.label + ", " + s.label + (tons() ? ", " + tons() + " tons" : ""));
+    parts.push("Price tool: " + (z ? z.label : "AC size picked by customer") + ", " + (st.count ? (st.count === "3" ? "3+" : st.count) + " AC(s), " : "") + s.label + (tons() ? ", " + tons() + " tons" : ""));
     if (t) { var r = add(tierRange(t), addonRange()); parts.push("Tier: " + t.name + (r ? " (" + rangeText(r) + ")" : "")); }
     var ad = S.addons.filter(function (a) { return st.addons[a.id]; }).map(function (a) { return a.name; });
     if (ad.length) parts.push("Add-ons: " + ad.join(", "));

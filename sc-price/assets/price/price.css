@@ -220,3 +220,7 @@ body.pt-has-bar{padding-bottom:4.5rem}
 .pt-sum .pt-ask .pt-sub{font-size:var(--text-sm);margin:0}
 .pt-sum .pt-ask .pt-ask-btns{margin-top:.75rem}
 .pt-sum .pt-ask .pt-ask-btns .btn{min-width:8rem}
+.pt-or{display:flex;align-items:center;gap:.75rem;margin:1.25rem 0 .5rem;color:var(--color-text-muted);font-weight:700;font-size:var(--text-sm)}
+.pt-or::before,.pt-or::after{content:"";flex:1;height:1px;background:#d5e0ea}
+.pt-h3{font-family:var(--font-display);color:var(--navy);font-size:var(--text-lg);margin:0 0 .25rem}
+.pt-multi{font-size:var(--text-sm);color:var(--navy);font-weight:700;margin:.4rem 0 0}

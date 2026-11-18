@@ -1,8 +1,8 @@
 {
  "_read_me": "THE ONE PLACE for Sunny Coast prices, fees and offers on the website (rule from 2026-11-08). Change a number here, rebuild, and every page that shows it updates. null = not set yet (the page shows a dash). Prices are [low, high] in dollars. Listings (Google, Yelp, etc.) never get any of these.",
- "updated": "2026-11-10",
- "flow": "combined",
- "_flow_note": "Combined: upgrades first, then the 3 system options, then the first price on the estimate. The preview still supports after, before, and last for comparison.",
+ "updated": "2026-11-17",
+ "flow": "last",
+ "_flow_note": "Javier call 2026-11-17: pick a system first (no prices on the cards), then upgrades, then the \"Before you see your price\" notice, then the price on the estimate.",
  "visits": {
   "repair_visit": "free",
   "new_system_visit": "free",
@@ -61,19 +61,24 @@
    "id": "s7",
    "label": "Over 3,000 sq ft",
    "tons": null,
-   "note": "Homes this size often need two systems. We'll size it at your free visit."
+   "note": "Homes this size often need two systems. We'll size it at your free estimate."
   }
  ],
  "_sizes_note": "Javier: check the square feet to tons rule. These are rough South Florida starting points.",
  "systems": [
   {
    "id": "split",
-   "label": "One unit inside and one outside",
+   "label": "One unit inside and one outside (split system)",
    "priced": true
   },
   {
    "id": "package",
-   "label": "One outdoor unit only",
+   "label": "One outdoor unit only (package unit)",
+   "priced": true
+  },
+  {
+   "id": "water",
+   "label": "One indoor unit only (water source)",
    "priced": true
   },
   {
@@ -115,6 +120,14 @@
      "3.5": null,
      "4": null,
      "5": null
+    },
+    "water": {
+     "2": null,
+     "2.5": null,
+     "3": null,
+     "3.5": null,
+     "4": null,
+     "5": null
     }
    }
   },
@@ -137,6 +150,14 @@
      "5": null
     },
     "package": {
+     "2": null,
+     "2.5": null,
+     "3": null,
+     "3.5": null,
+     "4": null,
+     "5": null
+    },
+    "water": {
      "2": null,
      "2.5": null,
      "3": null,
@@ -171,6 +192,14 @@
      "3.5": null,
      "4": null,
      "5": null
+    },
+    "water": {
+     "2": null,
+     "2.5": null,
+     "3": null,
+     "3.5": null,
+     "4": null,
+     "5": null
     }
    }
   }
@@ -181,169 +210,9 @@
   "System Workmanship Warranty for as long as you own your home",
   "We register it with the manufacturer, so you get the full parts warranty"
  ],
- "questions": [
-  {
-   "id": "inside_unit",
-   "label": "Where is your inside unit?",
-   "only_for": [
-    "split"
-   ],
-   "options": [
-    [
-     "closet",
-     "In a closet"
-    ],
-    [
-     "attic",
-     "In the attic"
-    ],
-    [
-     "garage",
-     "In the garage"
-    ],
-    [
-     "unsure",
-     "Not sure"
-    ]
-   ]
-  },
-  {
-   "id": "outside_unit",
-   "label": "Where is your outside unit?",
-   "options": [
-    [
-     "ground",
-     "On the ground"
-    ],
-    [
-     "roof",
-     "On the roof"
-    ],
-    [
-     "wall",
-     "On a wall or balcony"
-    ],
-    [
-     "unsure",
-     "Not sure"
-    ]
-   ]
-  },
-  {
-   "id": "home_type",
-   "label": "What kind of home is it?",
-   "options": [
-    [
-     "house",
-     "House"
-    ],
-    [
-     "townhouse",
-     "Townhouse"
-    ],
-    [
-     "condo",
-     "Condo or apartment"
-    ]
-   ]
-  },
-  {
-   "id": "floors",
-   "label": "How many floors does your home have?",
-   "options": [
-    [
-     "1",
-     "One floor"
-    ],
-    [
-     "2",
-     "Two or more"
-    ]
-   ]
-  },
-  {
-   "id": "age",
-   "label": "How old is your current AC?",
-   "help": "Check the label on the outside unit if you're not sure.",
-   "options": [
-    [
-     "under10",
-     "Under 10 years"
-    ],
-    [
-     "10to15",
-     "10 to 15 years"
-    ],
-    [
-     "over15",
-     "Over 15 years"
-    ],
-    [
-     "unsure",
-     "Not sure"
-    ]
-   ]
-  }
- ],
- "_questions_note": "Home details asked before the estimate. Live site: a question only shows if one of its answers has an extra cost below (preview shows them all). only_for = system types that see it.",
- "adjustments": [
-  {
-   "id": "attic",
-   "question": "inside_unit",
-   "answer": "attic",
-   "label": "Inside unit in the attic",
-   "price": null,
-   "why": "Hot, tight space. Takes longer and needs more hands."
-  },
-  {
-   "id": "garage",
-   "question": "inside_unit",
-   "answer": "garage",
-   "label": "Inside unit in the garage",
-   "price": null,
-   "why": "Often needs a new stand or platform."
-  },
-  {
-   "id": "outside_roof",
-   "question": "outside_unit",
-   "answer": "roof",
-   "label": "Outside unit on the roof",
-   "price": null,
-   "why": "May need a crane or lift, plus a roof stand."
-  },
-  {
-   "id": "outside_wall",
-   "question": "outside_unit",
-   "answer": "wall",
-   "label": "Outside unit on a wall or balcony",
-   "price": null,
-   "why": "Wall brackets and harder access."
-  },
-  {
-   "id": "condo",
-   "question": "home_type",
-   "answer": "condo",
-   "label": "Condo or apartment",
-   "price": null,
-   "why": "HOA paperwork, elevator or loading rules, set work hours, tight closets."
-  },
-  {
-   "id": "two_floors",
-   "question": "floors",
-   "answer": "2",
-   "label": "Two or more floors",
-   "price": null,
-   "why": "Longer line runs and carrying equipment upstairs."
-  },
-  {
-   "id": "old_system",
-   "question": "age",
-   "answer": "over15",
-   "label": "Current system over 15 years old",
-   "price": null,
-   "why": "Often needs new copper lines, wiring or a new disconnect."
-  }
- ],
+ "questions": [],
+ "_questions_note": "Javier call 2026-11-17: all home-detail questions removed (inside/outside unit, home type, floors, AC age). Removed questions do not change the price.",
+ "adjustments": [],
  "_adjustments_note": "Extra cost [low, high] added to every tier when the customer picks that answer. price null = no extra cost (and the live site hides a question with no priced answers). why = internal note for Javier, not shown on the site.",
  "addons": [
   {
