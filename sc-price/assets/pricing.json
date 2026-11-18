@@ -20,6 +20,10 @@
   "rating": "4.9",
   "_note": "Completed new-system (LSC) jobs in Dispatch with a Miami-Dade or Broward ZIP, last 12 months. Counted 2026-11-17 by 2026-11-05/_check/install_count.py. Re-run it and update all 4 fields together (Armando: use the exact number, with the * footnote)."
  },
+ "multi_ac": {
+  "discount_percent": 10,
+  "_note": "Armando 2026-11-17: homes with 2+ ACs can see the price for 2 or 3 (same system each), with this % off the total. Arbitrary for now."
+ },
  "financing": {
   "available": true,
   "apr_percent": null,

@@ -252,15 +252,26 @@
     },
     estimate: function () {
       var t = tierObj(st.tier), tr = tierRange(t), base = basePrice(t);
-      var rows = [[t.name + " system, " + tons() + " tons" + (st.count && st.count !== "1" ? " (1 of your ACs)" : ""), base ? rangeText(base) : null]];
+      var rows = [[t.name + " system, " + tons() + " tons", base ? rangeText(base) : null]];
       adjustments().lines.forEach(function (l) { rows.push([l[0], l[1] ? "+" + rangeText(l[1]) : null]); });
       S.addons.forEach(function (a) { if (st.addons[a.id]) rows.push([a.name, a.price ? "+" + rangeText(a.price) : null]); });
-      var total = add(tr, addonRange());
-      return '<div class="pt-screen"><h2 class="pt-h">Your estimate</h2>' +
+      // Armando 2026-11-17: price per AC; homes with 2+ ACs can see the price for 2 or 3, with a discount
+      var per = add(tr, addonRange()), maxN = Math.min(Number(st.count || 1), 3), n = Math.min(st.priceCount || maxN, maxN);
+      var d = ((S.multi_ac || {}).discount_percent || 0) / 100;
+      var scale = function (r, k) { return r ? [Math.round(r[0] * k), Math.round(r[1] * k)] : null; };
+      var total = n > 1 ? scale(per, n * (1 - d)) : per;
+      if (n > 1) {
+        rows.push(["For " + n + " ACs, same system", per ? rangeText(scale(per, n)) : null]);
+        if (d) rows.push([Math.round(d * 100) + "% off for 2 or more ACs", per ? "−" + rangeText(scale(per, n * d)) : null]);
+      }
+      var picker = maxN > 1 ? '<div class="pt-count" role="group" aria-label="How many ACs to price"><span>Price for:</span>' +
+        [1, 2, 3].slice(0, maxN).map(function (k) { return '<button type="button" class="pt-count-btn" data-n="' + k + '" aria-pressed="' + (k === n) + '">' + k + (k === 1 ? " AC" : " ACs") + "</button>"; }).join("") +
+        (d ? '<small>' + Math.round(d * 100) + '% off when we do 2 or more</small>' : "") + "</div>" : "";
+      return '<div class="pt-screen"><h2 class="pt-h">Your estimate</h2>' + picker +
         (PRICE_ON_ESTIMATE ? '<div class="pt-estimate-layout">' : "") + '<div class="pt-sum"><ul class="pt-sum-rows">' +
         rows.map(function (r) { return "<li><span>" + esc(r[0]) + "</span><span>" + (r[1] || (UI ? missing() : "At your visit")) + "</span></li>"; }).join("") +
         '</ul><div class="pt-total"><span>Estimated total</span><strong>' + (total ? rangeText(total) : (UI ? missing("$ — to $ —") : "At your free estimate")) + "</strong></div>" + monthlyLine(total) +
-        (st.count && st.count !== "1" ? '<p class="pt-multi">This price is for one AC. We price your other ' + (st.count === "2" ? "one" : "ones") + " at your free estimate.</p>" : "") +
+        (maxN > 1 ? '<p class="pt-multi">' + (n > 1 ? "This assumes each AC gets the same system. We check each one at your free estimate." : "This price is for one AC.") + "</p>" : "") +
         '<div class="pt-ask"><h3>Want us to call you about these options?</h3><p class="pt-sub">No pressure. We answer your questions and set up your free estimate if you want one.</p>' +
         '<div class="pt-ask-btns"><button type="button" class="btn btn-primary" id="pt-yes">Yes, call me</button><button type="button" class="btn btn-outline" id="pt-no">No thanks</button></div></div>' +
         '<p class="pt-note">This is an estimate. We confirm your final price when we come out for your free estimate, before any work starts. If something at your home changes the price, we explain why and give you the new price in writing first.</p>' +
@@ -366,6 +377,9 @@
     },
     estimate: function () {
       bindBack();
+      document.querySelectorAll("#pt-stage .pt-count-btn").forEach(function (b) {
+        b.addEventListener("click", function () { st.priceCount = Number(b.getAttribute("data-n")); ga("price_tool_count_view", { n: st.priceCount }); go("estimate", { back: true, noScroll: true, instant: true }); });
+      });
       var pe = $("pt-precise-est"); if (pe) pe.addEventListener("click", openPrecise);
       $("pt-yes").addEventListener("click", function () { st.contact = "call"; ga("price_tool_call_yes"); go("contact"); });
       $("pt-no").addEventListener("click", function () { st.contact = "email"; ga("price_tool_call_no"); showBar(); go("contact"); });
