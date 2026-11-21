@@ -3,7 +3,12 @@
 (function () {
   "use strict";
   var S = null;
-  var st = { size: null, system: null, tier: null, addons: {}, precise: {}, preciseStep: 0, contact: null, screen: "size", history: [] };
+  var st = { units: [], unitIndex: 0, preciseStep: 0, contact: null, screen: "size", history: [] };
+  var unit = blankUnit();
+
+  function blankUnit() {
+    return { size: null, tonsPick: null, system: null, tier: null, addons: {}, precise: {} };
+  }
   var loadedAt = Date.now();
   var PREVIEW = true; // review copy: always preview, never sends
   // CLEAN (Armando 2026-11-17): the review copy for Javier looks exactly like the live page (no yellow banner,
@@ -28,17 +33,17 @@
   var FLOW = "after";
   var UPGRADES_FIRST = false;
   var PRICE_ON_ESTIMATE = false;
-  var STEPS = ["size", "count", "system", "prices", "addons", "estimate", "contact", "done"];
-  var STEP_LABEL = { size: "Home size", count: "How many ACs", system: "Your system", prices: "Your prices", addons: "Upgrades", notice: "Before your price", estimate: "Your estimate", contact: "Contact", special: "Contact", done: "Done" };
+  var STEPS = ["size", "system", "prices", "addons", "estimate", "contact", "done"];
+  var STEP_LABEL = { size: "AC size", system: "Your system", prices: "Your prices", addons: "Upgrades", notice: "Before your price", estimate: "Your estimate", contact: "Contact", special: "Contact", done: "Done" };
   function setFlow(f) {
     FLOW = FLOWS[f] ? f : "after";
     UPGRADES_FIRST = FLOW === "before" || FLOW === "combined";
     PRICE_ON_ESTIMATE = FLOW === "last" || FLOW === "combined";
-    STEPS = UPGRADES_FIRST ? ["size", "count", "system", "addons", "prices", "notice", "estimate", "contact", "done"] : ["size", "count", "system", "prices", "addons", "notice", "estimate", "contact", "done"];
+    STEPS = UPGRADES_FIRST ? ["size", "system", "addons", "prices", "notice", "estimate", "contact", "done"] : ["size", "system", "prices", "addons", "notice", "estimate", "contact", "done"];
     STEP_LABEL.prices = PRICE_ON_ESTIMATE ? "Pick a system" : "Your prices";
   }
   function joinAnd(l) { return l.length < 2 ? l.join("") : l.slice(0, -1).join(", ") + " and " + l[l.length - 1]; }
-  function chosenAddons() { return S.addons.filter(function (a) { return st.addons[a.id]; }); }
+  function chosenAddons() { return S.addons.filter(function (a) { return unit.addons[a.id]; }); }
 
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
@@ -47,20 +52,20 @@
   function missing(t) { return UI ? '<span class="pt-missing">' + (t || "$ —") + "</span>" : ""; }
 
   // ---------- price math ----------
-  function sizeObj() { return S.sizes.filter(function (x) { return x.id === st.size; })[0]; }
-  function sysObj() { return S.systems.filter(function (x) { return x.id === st.system; })[0]; }
-  function sysKey() { var s = sysObj(); return s ? (s.use || s.id) : null; }
-  function tons() { if (st.tonsPick) return Number(st.tonsPick); var z = sizeObj(); return z ? z.tons : null; }
+  function sizeObj(unit) { return S.sizes.filter(function (x) { return x.id === unit.size; })[0]; }
+  function sysObj(unit) { return S.systems.filter(function (x) { return x.id === unit.system; })[0]; }
+  function sysKey(unit) { var s = sysObj(unit); return s ? (s.use || s.id) : null; }
+  function tons(unit) { if (unit.tonsPick) return Number(unit.tonsPick); var z = sizeObj(unit); return z ? z.tons : null; }
   var TONS = ["2", "2.5", "3", "3.5", "4", "5"];
   function recCount() { var n = S.addons.filter(function (a) { return a.active && a.recommended; }).length; return n === 2 ? "2" : String(n); }
   function tierObj(id) { return S.tiers.filter(function (t) { return t.id === id; })[0]; }
   function add(a, b) { if (!a || !b) return null; return [a[0] + b[0], a[1] + b[1]]; }
-  function adjustments() {
+  function adjustments(unit) {
     var out = [0, 0], ok = true, lines = [];
     (S.adjustments || []).forEach(function (a) {
       var qx = (S.questions || []).filter(function (x) { return x.id === a.question; })[0];
-      if (qx && qx.only_for && qx.only_for.indexOf(sysKey()) < 0) return;
-      if (st.precise[a.question] === a.answer) {
+      if (qx && qx.only_for && qx.only_for.indexOf(sysKey(unit)) < 0) return;
+      if (unit.precise[a.question] === a.answer) {
         if (a.price) { out = add(out, a.price); lines.push([a.label, a.price]); } else { ok = false; lines.push([a.label, null]); }
       }
     });
@@ -70,18 +75,30 @@
     // a question shows if it fits this system type, and (live site) one of its answers adds cost.
     // anySystem: before the system is picked, count every question so "Step x of y" doesn't jump.
     return (S.questions || []).filter(function (x) {
-      if (!anySystem && x.only_for && x.only_for.indexOf(sysKey()) < 0) return false;
+      if (!anySystem && x.only_for && x.only_for.indexOf(sysKey(unit)) < 0) return false;
       return PREVIEW || (S.adjustments || []).some(function (a) { return a.question === x.id && a.price; });
     });
   }
-  function basePrice(t) { return t.prices && t.prices[sysKey()] && t.prices[sysKey()][String(tons())]; }
-  function tierRange(t) { var p = basePrice(t); return p ? add(p, adjustments().sum) : null; }
-  function addonRange() {
+  function basePrice(t, unit) { return t.prices && t.prices[sysKey(unit)] && t.prices[sysKey(unit)][String(tons(unit))]; }
+  function tierRange(t, unit) { var p = basePrice(t, unit); return p ? add(p, adjustments(unit).sum) : null; }
+  function addonRange(unit) {
     var out = [0, 0], ok = true;
-    S.addons.forEach(function (a) { if (st.addons[a.id]) { if (a.price) out = add(out, a.price); else ok = false; } });
+    S.addons.forEach(function (a) { if (unit.addons[a.id]) { if (a.price) out = add(out, a.price); else ok = false; } });
     return ok ? out : null;
   }
   function rangeText(r) { return r ? money(r[0]) + " to " + money(r[1]) : null; }
+  function unitTotal(unit) {
+    return add(tierRange(tierObj(unit.tier), unit), addonRange(unit));
+  }
+  function estimateTotals() {
+    var subtotal = st.units.map(unitTotal).reduce(add, [0, 0]);
+    var percent = Number((S.multi_ac || {}).discount_percent) || 0;
+    var savings = subtotal && st.units.length > 1 && percent ? subtotal.map(function (price) {
+      return Math.round(price * percent / 100);
+    }) : null;
+    var total = savings ? [subtotal[0] - savings[0], subtotal[1] - savings[1]] : subtotal;
+    return { percent: percent, savings: savings, total: total };
+  }
   function monthly(low) {
     var f = S.financing || {};
     if (!f.available || !f.months || f.apr_percent == null || !low) return null;
@@ -102,7 +119,7 @@
     bar.hidden = false;
     var key = screen === "precise" ? st.history[st.history.length - 1] : screen === "special" ? "contact" : screen;
     var i = STEPS.indexOf(key); if (i < 0) return;
-    var count = preciseQuestions(!st.system).length;
+    var count = preciseQuestions(!unit.system).length;
     if (i > STEPS.indexOf("system")) i += count;
     if (screen === "precise" && key === "system") i += st.preciseStep + 1;
     var pct = Math.round(((i + 1) / (STEPS.length + count)) * 100);
@@ -110,7 +127,8 @@
     bar.setAttribute("aria-valuenow", String(pct));
     var total = STEPS.indexOf("estimate") + count;   // question screens before the estimate
     var label = screen === "precise" ? "Home details" : STEP_LABEL[screen] || "";
-    $("pt-progress-label").textContent = (i + 1 <= total ? "Step " + (i + 1) + " of " + total + " · " : "") + label;
+    var unitLabel = st.units.length && i + 1 <= total ? "AC " + (st.unitIndex + 1) + " · " : "";
+    $("pt-progress-label").textContent = unitLabel + (i + 1 <= total ? "Step " + (i + 1) + " of " + total + " · " : "") + label;
   }
   function go(screen, opts) {
     opts = opts || {};
@@ -136,9 +154,26 @@
     setTimeout(swap, 260);
   }
   function back() {
+    if ($("pt-stage").classList.contains("is-out")) return;
     var prev = st.history.pop() || "size";
     if (prev === "precise") st.preciseStep = preciseQuestions().length - 1;
     go(prev, { back: true });
+  }
+  function startUnit(index) {
+    var saved = st.units[index];
+    unit = saved ? Object.assign({}, saved, {
+      addons: Object.assign({}, saved.addons),
+      precise: Object.assign({}, saved.precise)
+    }) : blankUnit();
+    st.unitIndex = index;
+    st.preciseStep = 0;
+    st.history = [];
+    go("size", { back: true });
+  }
+  function returnToEstimate() {
+    if ($("pt-stage").classList.contains("is-out")) return;
+    st.history = [];
+    go("estimate", { back: true });
   }
   function openPrecise() {
     if ($("pt-stage").classList.contains("is-out")) return;
@@ -165,23 +200,19 @@
   // ---------- screens ----------
   var SCREENS = {
     size: function () {
-      return '<div class="pt-screen"><h2 class="pt-h">How big is your home?</h2><p class="pt-help">Count the living space you cool. A good guess is fine.</p>' +
-        tiles("size", S.sizes, false, function (x) { return esc(x.label); }, st.size) +
-        '<p class="pt-or"><span>or</span></p><h3 class="pt-h3">Know the size of your AC now?</h3><p class="pt-help">It\'s in "tons" on the label of the outside unit. Skip this if you\'re not sure.</p>' +
-        tiles("tons", TONS.map(function (t) { return { id: t, label: t + " tons" }; }), false, function (x) { return esc(x.label); }, st.tonsPick) +
-        nav(null, "Continue", "pt-next", !(st.size || st.tonsPick)) + "</div>";
-    },
-    count: function () {
-      var opts = [{ id: "1", label: "1" }, { id: "2", label: "2" }, { id: "3", label: "3 or more" }];
-      return '<div class="pt-screen"><h2 class="pt-h">How many ACs does your home have?</h2>' +
-        tiles("count", opts, false, function (x) { return esc(x.label); }, st.count) + nav("Back", "Continue", "pt-next", !st.count) + "</div>";
+      var ac = st.units.length ? "AC " + (st.unitIndex + 1) : "this AC";
+      return '<div class="pt-screen"><h2 class="pt-h">How much space does ' + ac + ' cool?</h2><p class="pt-help">Use the square feet cooled by this AC. A good guess is fine.</p>' +
+        tiles("size", S.sizes, false, function (x) { return esc(x.label); }, unit.size) +
+        '<p class="pt-or"><span>or</span></p><h3 class="pt-h3">Know the size of this AC?</h3><p class="pt-help">It\'s in "tons" on the label of the outside unit. Skip this if you\'re not sure.</p>' +
+        tiles("tons", TONS.map(function (t) { return { id: t, label: t + " tons" }; }), false, function (x) { return esc(x.label); }, unit.tonsPick) +
+        nav(st.units.length ? "Back to estimate" : null, "Continue", "pt-next", !(unit.size || unit.tonsPick)) + "</div>";
     },
     system: function () {
       return '<div class="pt-screen"><h2 class="pt-h">What kind of system do you have now?</h2>' +
-        tiles("system", S.systems, true, function (x) { return esc(x.label); }, st.system) + nav("Back", "Continue", "pt-next", !st.system) + "</div>";
+        tiles("system", S.systems, true, function (x) { return esc(x.label); }, unit.system) + nav("Back", "Continue", "pt-next", !unit.system) + "</div>";
     },
     prices: function () {
-      var t = tons(), sz = "For a " + t + "-ton system" + (st.system === "unsure" ? ", inside and outside unit" : "");
+      var t = tons(unit), sz = "For a " + t + "-ton system" + (unit.system === "unsure" ? ", inside and outside unit" : "");
       var head, sub, teaser;
       if (FLOW === "combined") {
         head = "Pick your system"; sub = sz + ". Choose an option to see your estimate.";
@@ -199,7 +230,7 @@
       return '<div class="pt-screen pt-screen--wide"><h2 class="pt-h">' + head + "</h2>" +
         '<p class="pt-sub">' + sub + "</p>" +
         (teaser ? '<p class="pt-teaser">' + teaser + "</p>" : "") +
-        (PRICE_ON_ESTIMATE ? '<p class="pt-help">Photos show examples. We confirm the exact brand and model in your quote.</p>' : "") +
+        (PRICE_ON_ESTIMATE ? '<p class="pt-help">Photos show examples. We confirm the exact brand and model before you decide.</p>' : "") +
         '<div class="pt-tiers">' + S.tiers.map(tierCard).join("") + "</div>" + brandStrip() +
         (preciseQuestions().length ? '<button type="button" class="pt-link" id="pt-precise-open">Change my home details</button>' : "") +
         (!PRICE_ON_ESTIMATE && monthly(1) ? '<p class="pt-help pt-foot">*Monthly payments are an estimate. They depend on approval by the lender.</p>' : "") +
@@ -207,7 +238,7 @@
     },
     precise: function () {
       var question = preciseQuestions()[st.preciseStep];
-      var answer = st.precise[question.id];
+      var answer = unit.precise[question.id];
       var options = question.options.map(function (o) { return { id: o[0], label: o[1] }; });
       return '<div class="pt-screen"><h2 class="pt-h">' + esc(question.label) + '</h2>' +
         '<p class="pt-help">' + esc(question.help || "Not sure? Skip it.") + "</p>" +
@@ -216,7 +247,7 @@
         nav("Back", answer ? "Continue" : "Skip", "pt-next", false) + "</div>";
     },
     addons: function () {
-      var t = tierObj(st.tier), act = S.addons.filter(function (a) { return a.active; });
+      var t = tierObj(unit.tier), act = S.addons.filter(function (a) { return a.active; });
       var price = function (a) {
         if (FLOW === "combined") return "";
         return '<span class="pt-addon-price">' + (a.price ? "+" + rangeText(a.price) : UI ? missing("+$ —") : "Ask us") + "</span>";
@@ -225,10 +256,10 @@
         return '<article class="pt-insight"><h3>' + esc(a.name) + '</h3>' +
           (a.problem ? '<p class="pt-insight-k">The problem</p><p>' + esc(a.problem) + "</p>" : "") +
           '<p class="pt-insight-k">What it does</p><p>' + esc(a.fix || a.why) + "</p>" +
-          '<label class="pt-insight-add"><input type="checkbox" value="' + a.id + '"' + (st.addons[a.id] ? " checked" : "") + '><span>Add to my system</span>' + price(a) + "</label></article>";
+          '<label class="pt-insight-add"><input type="checkbox" value="' + a.id + '"' + (unit.addons[a.id] ? " checked" : "") + '><span>Add to my system</span>' + price(a) + "</label></article>";
       }).join("");
       var more = act.filter(function (a) { return !a.recommended; }).map(function (a) {
-        return '<li><label class="pt-addon"><input type="checkbox" value="' + a.id + '"' + (st.addons[a.id] ? " checked" : "") + '><span><span class="pt-addon-name">' + esc(a.name) + '</span><span class="pt-addon-why">' + esc(a.why) + '</span></span>' + price(a) + "</label></li>";
+        return '<li><label class="pt-addon"><input type="checkbox" value="' + a.id + '"' + (unit.addons[a.id] ? " checked" : "") + '><span><span class="pt-addon-name">' + esc(a.name) + '</span><span class="pt-addon-why">' + esc(a.why) + '</span></span>' + price(a) + "</label></li>";
       }).join("");
       var help = FLOW === "combined" ? "Choose any upgrades you’d like to include in your estimate."
         : FLOW === "before" ? "Here's what we'd add in a Miami home, and why. Check the ones you want and we'll add them to your prices on the next screen."
@@ -244,47 +275,35 @@
       // 2026-11-17 (Armando): make sure people know it's only an estimate before they see a number
       var pf = S.proof || {};
       return '<div class="pt-screen pt-notice"><h2 class="pt-h">Before you see your price</h2>' +
-        '<p class="pt-sub"><strong>This is an estimate, not a final quote.</strong></p><ul class="pt-notice-list">' +
+        '<p class="pt-sub"><strong>This is an online estimate.</strong></p><ul class="pt-notice-list">' +
         (pf.installs ? "<li>It's based on the " + esc(pf.installs) + " new AC systems our team installed in " + esc(pf.area) + " this past year.</li>" : "<li>It's based on new AC systems our team installed this past year.</li>") +
         "<li>Every home is different. Things we can't see online, like your ducts or wiring, can change the price.</li>" +
         "<li>For your real price, we come out and look at your home. It's a free estimate, with no obligation.</li></ul>" +
         nav("Back", "Got it, show my estimate", "pt-next", false) + "</div>";
     },
     estimate: function () {
-      var t = tierObj(st.tier), tr = tierRange(t), base = basePrice(t);
-      var rows = [[t.name + " system, " + tons() + " tons", base ? rangeText(base) : null]];
-      adjustments().lines.forEach(function (l) { rows.push([l[0], l[1] ? "+" + rangeText(l[1]) : null]); });
-      S.addons.forEach(function (a) { if (st.addons[a.id]) rows.push([a.name, a.price ? "+" + rangeText(a.price) : null]); });
-      // Armando 2026-11-17: price per AC; homes with 2+ ACs can see the price for 2 or 3, with a discount
-      var per = add(tr, addonRange()), maxN = Math.min(Number(st.count || 1), 3), n = Math.min(st.priceCount || maxN, maxN);
-      var d = ((S.multi_ac || {}).discount_percent || 0) / 100;
-      var scale = function (r, k) { return r ? [Math.round(r[0] * k), Math.round(r[1] * k)] : null; };
-      var total = n > 1 ? scale(per, n * (1 - d)) : per;
-      if (n > 1) {
-        rows.push(["For " + n + " ACs, same system", per ? rangeText(scale(per, n)) : null]);
-        if (d) rows.push([Math.round(d * 100) + "% off for 2 or more ACs", per ? "−" + rangeText(scale(per, n * d)) : null]);
-      }
-      var picker = maxN > 1 ? '<div class="pt-count" role="group" aria-label="How many ACs to price"><span>Price for:</span>' +
-        [1, 2, 3].slice(0, maxN).map(function (k) { return '<button type="button" class="pt-count-btn" data-n="' + k + '" aria-pressed="' + (k === n) + '">' + k + (k === 1 ? " AC" : " ACs") + "</button>"; }).join("") +
-        (d ? '<small>' + Math.round(d * 100) + '% off when we do 2 or more</small>' : "") + "</div>" : "";
-      // Armando 2026-11-17: the AC photo sits right under "Your estimate" on phones and computers
+      var t = tierObj(st.units[0].tier), totals = estimateTotals();
+      var offer = totals.percent && st.units.length === 1 ? 'Get ' + totals.percent + '% off when we install 2 or more ACs.' : "";
       return '<div class="pt-screen"><h2 class="pt-h">Your estimate</h2>' +
-        (PRICE_ON_ESTIMATE ? '<figure class="pt-estimate-photo">' + productPhotos(t.id) + '<figcaption>Example ' + esc(t.name) + ' outdoor units</figcaption></figure>' : "") +
-        picker + '<div class="pt-sum"><ul class="pt-sum-rows">' +
-        rows.map(function (r) { return "<li><span>" + esc(r[0]) + "</span><span>" + (r[1] || (UI ? missing() : "At your visit")) + "</span></li>"; }).join("") +
-        '</ul><div class="pt-total"><span>Estimated total</span><strong>' + (total ? rangeText(total) : (UI ? missing("$ — to $ —") : "At your free estimate")) + "</strong></div>" + monthlyLine(total) +
-        (maxN > 1 ? '<p class="pt-multi">' + (n > 1 ? "This assumes each AC gets the same system. We check each one at your free estimate." : "This price is for one AC.") + "</p>" : "") +
+        (PRICE_ON_ESTIMATE ? '<div class="pt-estimate-photo">' + productPhotos(t.id) + '</div>' : "") +
+        '<div class="pt-sum">' + st.units.map(estimateUnit).join("") +
+        (totals.percent && st.units.length > 1 ? '<p class="pt-savings"><strong>' + totals.percent + '% off for 2 or more ACs</strong>' +
+          (totals.savings ? '<span>Save ' + rangeText(totals.savings) + '</span>' : '') + '</p>' : "") +
+        '<div class="pt-total"><span>Estimated total</span><strong>' + (totals.total ? rangeText(totals.total) : (UI ? missing("$ — to $ —") : "At your free estimate")) + "</strong></div>" + monthlyLine(totals.total) +
+        '<div class="pt-add-ac">' + (offer ? '<strong>' + offer + '</strong>' : "") +
+        '<button type="button" class="btn btn-outline" id="pt-add-ac">+ Add another AC</button></div>' +
         '<div class="pt-ask"><h3>Want us to call you about these options?</h3><p class="pt-sub">No pressure. We answer your questions and set up your free estimate if you want one.</p>' +
         '<div class="pt-ask-btns"><button type="button" class="btn btn-primary" id="pt-yes">Yes, call me</button><button type="button" class="btn btn-outline" id="pt-no">No thanks</button></div></div>' +
         '<p class="pt-note">This is an estimate. We confirm your final price when we come out for your free estimate, before any work starts. If something at your home changes the price, we explain why and give you the new price in writing first.</p>' +
-        (S.proof ? '<p class="pt-proof-est">Based on ' + esc(S.proof.installs) + ' new AC systems our team installed in ' + esc(S.proof.area) + ' this past year.</p>' : "") + "</div>" +
-        (preciseQuestions().length ? '<button type="button" class="pt-link pt-link--est" id="pt-precise-est">Change my home details</button>' : "") +
-        nav("Back", null) + "</div>";
+        (S.proof ? '<p class="pt-proof-est">Based on ' + esc(S.proof.installs) + ' new AC systems our team installed in ' + esc(S.proof.area) + ' this past year.</p>' : "") + "</div></div>";
     },
     contact: function () { return '<div class="pt-screen">' + leadForm(st.contact) + nav("Back", null) + "</div>"; },
     special: function () {
-      var z = sizeObj(), s = sysObj(), why = !s.priced ? s.note : (z && z.note) || "";
-      return '<div class="pt-screen"><h2 class="pt-h">Let\'s get you a real price</h2><p class="pt-sub">' + esc(why) + "</p>" + leadForm("call", true) + nav("Back", null) + "</div>";
+      var z = sizeObj(unit), s = sysObj(unit), why = !s.priced ? s.note : (z && z.note) || "";
+      return '<div class="pt-screen"><h2 class="pt-h">Let\'s get you a real price</h2><p class="pt-sub">' + esc(why) + "</p>" +
+        leadForm("call", true) +
+        (st.units.length ? '<button type="button" class="pt-link" id="pt-keep-estimate">Back to my estimate</button>' : "") +
+        nav("Back", null) + "</div>";
     },
     done: function () {
       var call = st.contact === "call";
@@ -297,25 +316,34 @@
   };
 
   var BIND = {
-    notice: function () { bindBack(); $("pt-next").addEventListener("click", function () { if ($("pt-stage").classList.contains("is-out")) return; ga("price_tool_notice_ok"); go("estimate"); }); },
+    notice: function () {
+      bindBack();
+      $("pt-next").addEventListener("click", function () {
+        if ($("pt-stage").classList.contains("is-out")) return;
+        ga("price_tool_notice_ok");
+        st.units[st.unitIndex] = unit;
+        returnToEstimate();
+      });
+    },
     size: function () {
       function started() { if (!st.started) { st.started = true; ga("price_tool_start"); } }
       function clear(name) { document.querySelectorAll('#pt-stage input[name="' + name + '"]').forEach(function (i) { i.checked = false; }); }
-      bindTiles("size", "pt-next", function (v) { started(); st.size = v; st.tonsPick = null; clear("tons"); });
-      bindTiles("tons", "pt-next", function (v) { started(); st.tonsPick = v; st.size = null; clear("size"); });
-      $("pt-next").addEventListener("click", function () { go("count"); });
+      bindTiles("size", "pt-next", function (v) { started(); unit.size = v; unit.tonsPick = null; clear("tons"); });
+      bindTiles("tons", "pt-next", function (v) { started(); unit.tonsPick = v; unit.size = null; clear("size"); });
+      var cancel = document.querySelector("#pt-stage [data-back]");
+      if (cancel) cancel.addEventListener("click", returnToEstimate);
+      $("pt-next").addEventListener("click", function () { go("system"); });
     },
-    count: function () { bindBack(); bindTiles("count", "pt-next", function (v) { st.count = v; ga("price_tool_count", { count: v }); }); $("pt-next").addEventListener("click", function () { go("system"); }); },
     system: function () {
-      bindBack(); bindTiles("system", "pt-next", function (v) { st.system = v; });
+      bindBack(); bindTiles("system", "pt-next", function (v) { unit.system = v; });
       $("pt-next").addEventListener("click", function () {
         if ($("pt-stage").classList.contains("is-out")) return;
-        st.tier = null; ga("price_tool_result", { size: st.size, system: st.system });
+        ga("price_tool_result", { size: unit.size, system: unit.system });
         var questions = preciseQuestions();
-        Object.keys(st.precise).forEach(function (id) {
-          if (!questions.some(function (q) { return q.id === id; })) delete st.precise[id];
+        Object.keys(unit.precise).forEach(function (id) {
+          if (!questions.some(function (q) { return q.id === id; })) delete unit.precise[id];
         });
-        if (!sysObj().priced || !tons()) go("special");
+        if (!sysObj(unit).priced || !tons(unit)) go("special");
         else if (questions.length) openPrecise();
         else go(UPGRADES_FIRST ? "addons" : "prices");
       });
@@ -324,7 +352,7 @@
       bindBack();
       document.querySelectorAll(".pt-tier").forEach(function (card) {
         var b = card.querySelector(".pt-choose");
-        card.addEventListener("click", function (e) { if (e.target.closest("a") || $("pt-stage").classList.contains("is-out")) return; st.tier = b.getAttribute("data-tier"); ga("price_tool_tier", { tier: st.tier, flow: FLOW }); go(UPGRADES_FIRST ? "notice" : "addons"); });
+        card.addEventListener("click", function (e) { if (e.target.closest("a") || $("pt-stage").classList.contains("is-out")) return; unit.tier = b.getAttribute("data-tier"); ga("price_tool_tier", { tier: unit.tier, flow: FLOW }); go(UPGRADES_FIRST ? "notice" : "addons"); });
       });
       var po = $("pt-precise-open"); if (po) po.addEventListener("click", openPrecise);
     },
@@ -342,7 +370,7 @@
       });
       function advance(clearAnswer) {
         if (stage.classList.contains("is-out")) return;
-        if (clearAnswer) delete st.precise[question.id];
+        if (clearAnswer) delete unit.precise[question.id];
         if (st.preciseStep === questions.length - 1) {
           if (st.history[st.history.length - 1] === "system") go(UPGRADES_FIRST ? "addons" : "prices");
           else back();
@@ -352,7 +380,7 @@
         go("precise");
       }
       bindTiles("pt-detail", "pt-next", function (value) {
-        st.precise[question.id] = value;
+        unit.precise[question.id] = value;
         ga("price_tool_precise", { q: question.id });
         next.textContent = "Continue";
         skip.hidden = false;
@@ -363,12 +391,12 @@
     addons: function () {
       bindBack();
       document.querySelectorAll('#pt-stage input[type="checkbox"]').forEach(function (c) {
-        c.addEventListener("change", function () { st.addons[c.value] = c.checked; ga("price_tool_addon", { addon: c.value, on: c.checked }); });
+        c.addEventListener("change", function () { unit.addons[c.value] = c.checked; ga("price_tool_addon", { addon: c.value, on: c.checked }); });
       });
       var skip = $("pt-skip-upgrades");
       if (skip) skip.addEventListener("click", function () {
         if ($("pt-stage").classList.contains("is-out")) return;
-        st.addons = {};
+        unit.addons = {};
         go("prices");
       });
       $("pt-next").addEventListener("click", function () {
@@ -377,26 +405,63 @@
       });
     },
     estimate: function () {
-      bindBack();
-      document.querySelectorAll("#pt-stage .pt-count-btn").forEach(function (b) {
-        b.addEventListener("click", function () { st.priceCount = Number(b.getAttribute("data-n")); ga("price_tool_count_view", { n: st.priceCount }); go("estimate", { back: true, noScroll: true, instant: true }); });
+      $("pt-add-ac").addEventListener("click", function () {
+        if ($("pt-stage").classList.contains("is-out")) return;
+        ga("price_tool_add_ac", { n: st.units.length + 1 });
+        startUnit(st.units.length);
       });
-      var pe = $("pt-precise-est"); if (pe) pe.addEventListener("click", openPrecise);
+      document.querySelectorAll("#pt-stage [data-edit-ac]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          if (!$("pt-stage").classList.contains("is-out")) startUnit(Number(b.dataset.editAc));
+        });
+      });
+      document.querySelectorAll("#pt-stage [data-remove-ac]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          if ($("pt-stage").classList.contains("is-out")) return;
+          st.units.splice(Number(b.dataset.removeAc), 1);
+          go("estimate", { back: true });
+        });
+      });
       $("pt-yes").addEventListener("click", function () { st.contact = "call"; ga("price_tool_call_yes"); go("contact"); });
       $("pt-no").addEventListener("click", function () { st.contact = "email"; ga("price_tool_call_no"); showBar(); go("contact"); });
     },
     contact: function () { bindBack(); bindLead(); },
-    special: function () { st.contact = "call"; bindBack(); bindLead(); },
+    special: function () {
+      st.contact = "call";
+      bindBack();
+      bindLead();
+      var keep = $("pt-keep-estimate");
+      if (keep) keep.addEventListener("click", returnToEstimate);
+    },
     done: function () {
       $("pt-restart").addEventListener("click", function () {
-        st.size = st.system = st.tier = st.contact = null; st.addons = {}; st.precise = {}; st.history = [];
+        st.units = [];
+        st.contact = null;
+        st.started = false;
         var bar = $("pt-bar"); if (bar) { bar.remove(); document.body.classList.remove("pt-has-bar"); }
-        go("size", { back: true });
+        startUnit(0);
       });
     }
   };
 
   // ---------- pieces ----------
+  function estimateUnit(ac, index) {
+    var number = index + 1, t = tierObj(ac.tier), system = sysObj(ac);
+    var base = basePrice(t, ac);
+    var detail = system.use ? "Split system assumed" : system.label;
+    var rows = [[t.name + ", " + tons(ac) + " tons", base ? rangeText(base) : null]];
+    adjustments(ac).lines.forEach(function (line) { rows.push([line[0], line[1] ? "+" + rangeText(line[1]) : null]); });
+    S.addons.filter(function (a) { return ac.addons[a.id]; }).forEach(function (a) {
+      rows.push([a.name, a.price ? "+" + rangeText(a.price) : null]);
+    });
+    return '<section class="pt-ac"><div class="pt-ac-heading"><h3>AC ' + number + '</h3><div class="pt-ac-actions">' +
+      '<button type="button" class="pt-back" data-edit-ac="' + index + '" aria-label="Edit AC ' + number + '">Edit</button>' +
+      (st.units.length > 1 ? '<button type="button" class="pt-back" data-remove-ac="' + index + '" aria-label="Remove AC ' + number + '">Remove</button>' : "") +
+      '</div></div><p class="pt-help">' + esc(detail) + '</p><ul class="pt-sum-rows">' +
+      rows.map(function (r) {
+        return "<li><span>" + esc(r[0]) + "</span><span>" + (r[1] || (UI ? missing() : "At your visit")) + "</span></li>";
+      }).join("") + "</ul></section>";
+  }
   function brandStrip() {
     return '<div class="pt-brands"><div class="pt-brand-photos" id="pt-brand-photos">' +
       BRANDS.map(function (b, i) { return '<img src="/sc-price/assets/price/brands/' + b + '.jpg" alt="A ' + b.charAt(0).toUpperCase() + b.slice(1) + ' unit from one of our team\'s jobs" class="b-' + b + (i === 0 ? " on" : "") + '">'; }).join("") +
@@ -433,15 +498,15 @@
     startProductFade.timer = setTimeout(fadeOut, hold + 260);
   }
   function tierCard(t) {
-    var r = tierRange(t), feats = [];
+    var r = tierRange(t, unit), feats = [];
     feats.push(esc(t.speed) + (t.id === "standard" ? ": on or off" : ""));
     feats.push(t.seer2 ? "Efficiency rating: " + esc(t.seer2) + " SEER2 (higher saves more on your bill)" : (UI ? "Efficiency rating: " + missing("SEER2") : ""));
     feats.push(t.parts_years ? esc(t.parts_years) + "-year parts warranty" : (UI ? missing("parts warranty years") : ""));
     S.warranty_lines.forEach(function (w) { feats.push(esc(w)); });
-    if (FLOW === "before") r = add(r, addonRange());
+    if (FLOW === "before") r = add(r, addonRange(unit));
     var price = r ? rangeText(r) : (UI ? missing("$ — to $ —") : "Price at your free estimate");
     var label = FLOW === "after" ? "Customize " : "Pick ";
-    return '<article class="pt-tier' + (t.pick ? " is-pick" : "") + '">' + (t.pick ? '<span class="pt-tag">Our team\'s pick</span>' : "") +
+    return '<article class="pt-tier' + (t.pick ? " is-pick" : "") + (t.id === unit.tier ? " is-chosen" : "") + '">' + (t.pick ? '<span class="pt-tag">Our team\'s pick</span>' : "") +
       (PRICE_ON_ESTIMATE ? productPhotos(t.id) : "") +
       "<h3>" + esc(t.name) + '</h3><p class="pt-speed">' + esc(t.speed) + '</p><p class="pt-hook">' + esc(t.hook) + '</p><p class="pt-body">' + esc(t.body) + "</p>" +
       (PRICE_ON_ESTIMATE ? "" : '<p class="pt-price">' + price + "</p>" + monthlyLine(r)) +
@@ -450,25 +515,40 @@
   }
   function leadForm(kind, noTitle) {
     var call = kind === "call";
-    return '<form class="pt-lead" id="pt-lead" data-kind="' + kind + '" novalidate>' + (noTitle ? "" : '<h2 class="pt-h">' + (call ? "We'll call you" : "Email me this quote") + "</h2>") +
+    var emailLabel = "Email me this estimate";
+    return '<form class="pt-lead" id="pt-lead" data-kind="' + kind + '" novalidate>' + (noTitle ? "" : '<h2 class="pt-h">' + (call ? "We'll call you" : emailLabel) + "</h2>") +
       '<p class="pt-sub">' + (call ? "We call as soon as we can during business hours: Monday to Friday 7 AM to 9 PM, Saturday 7 AM to 7 PM." : "We'll email you this estimate so you can look it over. No calls unless you ask.") + "</p>" +
       '<div class="pt-fields"><label>First name<input name="first_name" autocomplete="given-name" required></label><label>Last name<input name="last_name" autocomplete="family-name" required></label>' +
       (call ? '<label>Phone<input name="phone" type="tel" autocomplete="tel" inputmode="tel" required></label><label>Best time to call<select name="best_time"><option>Anytime</option><option>Morning</option><option>Afternoon</option><option>Evening</option></select></label>'
             : '<label class="full">Email<input name="email" type="email" autocomplete="email" required></label>') +
       '<label class="full">Anything we should know? (optional)<textarea name="notes" rows="2"></textarea></label></div>' +
-      '<label class="pt-consent"><input type="checkbox" name="consent_contact" required><span>I agree to be contacted about my quote. Calls may be recorded or handled by AI-assisted systems for quality and scheduling. See our <a href="https://sunnycoastac.com/legal/">Terms &amp; Privacy</a>.</span></label>' +
+      '<label class="pt-consent"><input type="checkbox" name="consent_contact" required><span>I agree to be contacted about my estimate. Calls may be recorded or handled by AI-assisted systems for quality and scheduling. See our <a href="https://sunnycoastac.com/legal/">Terms &amp; Privacy</a>.</span></label>' +
       '<div class="pt-hp" aria-hidden="true"><label>Company website<input name="company_website" tabindex="-1" autocomplete="off"></label></div>' +
-      '<button class="btn btn-primary pt-send" type="submit">' + (call ? "Call me" : "Email me this quote") + "</button>" +
+      '<button class="btn btn-primary pt-send" type="submit">' + (call ? "Call me" : emailLabel) + "</button>" +
       '<p class="pt-status" role="status" hidden></p>' +
       (noTitle ? "" : '<button type="button" class="pt-link" data-swap="' + (call ? "email" : "call") + '">' + (call ? "Rather get it by email?" : "Rather we call you?") + "</button>") + "</form>";
   }
-  function summaryText() {
-    var z = sizeObj(), s = sysObj(), t = st.tier ? tierObj(st.tier) : null, parts = [];
-    parts.push("Price tool: " + (z ? z.label : "AC size picked by customer") + ", " + (st.count ? (st.count === "3" ? "3+" : st.count) + " AC(s), " : "") + s.label + (tons() ? ", " + tons() + " tons" : ""));
-    if (t) { var r = add(tierRange(t), addonRange()); parts.push("Tier: " + t.name + (r ? " (" + rangeText(r) + ")" : "")); }
-    var ad = S.addons.filter(function (a) { return st.addons[a.id]; }).map(function (a) { return a.name; });
+  function unitSummary(ac, index) {
+    var z = sizeObj(ac), s = sysObj(ac), t = s.priced && tons(ac) ? tierObj(ac.tier) : null, parts = [];
+    parts.push("AC " + (index + 1) + ": " + (z ? z.label : "AC size picked by customer") + ", " + s.label + (tons(ac) ? ", " + tons(ac) + " tons" : ""));
+    if (!t) return parts[0];
+    var total = unitTotal(ac);
+    parts.push("Tier: " + t.name + (total ? " (" + rangeText(total) + ")" : ""));
+    var ad = S.addons.filter(function (a) { return ac.addons[a.id]; }).map(function (a) { return a.name; });
     if (ad.length) parts.push("Add-ons: " + ad.join(", "));
-    Object.keys(st.precise).forEach(function (k) { parts.push(k.replace("_", " ") + ": " + st.precise[k]); });
+    Object.keys(ac.precise).forEach(function (k) { parts.push(k.replace("_", " ") + ": " + ac.precise[k]); });
+    return parts.join(" | ");
+  }
+  function summaryText() {
+    var units = st.units.slice();
+    if (st.screen === "special") {
+      units[st.unitIndex] = unit;
+      return "Price tool | " + units.map(unitSummary).join(" | ") + " | Final price needs an in-home estimate";
+    }
+    var parts = ["Price tool"].concat(units.map(unitSummary));
+    var totals = estimateTotals();
+    if (units.length > 1 && totals.percent) parts.push("Multi-AC discount: " + totals.percent + "%" + (totals.savings ? " (save " + rangeText(totals.savings) + ")" : ""));
+    parts.push("Estimated total: " + (totals.total ? rangeText(totals.total) : "At your free estimate"));
     return parts.join(" | ");
   }
   function bindLead() {

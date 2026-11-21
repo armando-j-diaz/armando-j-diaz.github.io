@@ -22,7 +22,7 @@
  },
  "multi_ac": {
   "discount_percent": 10,
-  "_note": "Armando 2026-11-17: homes with 2+ ACs can see the price for 2 or 3 (same system each), with this % off the total. Arbitrary for now."
+  "_note": "Armando 2026-11-21: configure each AC separately from the estimate screen. Apply this discount to the combined estimate for two or more ACs."
  },
  "financing": {
   "available": true,
@@ -65,7 +65,7 @@
    "id": "s7",
    "label": "Over 3,000 sq ft",
    "tons": null,
-   "note": "Homes this size often need two systems. We'll size it at your free estimate."
+   "note": "We'll size the system for this space at your free estimate."
   }
  ],
  "_sizes_note": "Javier: check the square feet to tons rule. These are rough South Florida starting points.",
